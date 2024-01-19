@@ -962,34 +962,50 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Client.UI
                                     Application.Current.Dispatcher.Invoke(DispatcherPriority.Background,
                                         new ThreadStart(() =>
                                         {
-                                            //Handle Aircraft Name - find matching profile and select if you can
-                                            name = Regex.Replace(name.Trim().ToLower(), "[^a-zA-Z0-9]", "");
-                                            //add one to seat so seat_2 is copilot
-                                            var nameSeat = $"_{seat + 1}";
-
-                                            foreach (var profileName in _globalSettings.ProfileSettingsStore
-                                                         .ProfileNames)
+                                            if (!ClientState.ExternalAWACSModeConnected)
                                             {
-                                                //find matching seat
-                                                var splitName = profileName.Trim().ToLowerInvariant().Split('_')
-                                                    .First();
-                                                if (name.StartsWith(Regex.Replace(splitName, "[^a-zA-Z0-9]", "")) &&
-                                                    profileName.Trim().EndsWith(nameSeat))
+                                                //Handle Aircraft Name - find matching profile and select if you can
+                                                name = Regex.Replace(name.Trim().ToLower(), "[^a-zA-Z0-9]", "");
+                                                //add one to seat so seat_2 is copilot
+                                                var nameSeat = $"_{seat + 1}";
+
+                                                foreach (var profileName in _globalSettings.ProfileSettingsStore
+                                                                .ProfileNames)
                                                 {
-                                                    ControlsProfile.SelectedItem = profileName;
-                                                    return;
+                                                    //find matching seat
+                                                    var splitName = profileName.Trim().ToLowerInvariant().Split('_')
+                                                        .First();
+                                                    if (name.StartsWith(Regex.Replace(splitName, "[^a-zA-Z0-9]", "")) &&
+                                                        profileName.Trim().EndsWith(nameSeat))
+                                                    {
+                                                        ControlsProfile.SelectedItem = profileName;
+                                                        return;
+                                                    }
+                                                }
+
+                                                foreach (var profileName in _globalSettings.ProfileSettingsStore
+                                                                .ProfileNames)
+                                                {
+                                                    //find matching seat
+                                                    if (name.StartsWith(Regex.Replace(profileName.Trim().ToLower(),
+                                                            "[^a-zA-Z0-9_]", "")))
+                                                    {
+                                                        ControlsProfile.SelectedItem = profileName;
+                                                        return;
+                                                    }
                                                 }
                                             }
-
-                                            foreach (var profileName in _globalSettings.ProfileSettingsStore
-                                                         .ProfileNames)
+                                            else
                                             {
-                                                //find matching seat
-                                                if (name.StartsWith(Regex.Replace(profileName.Trim().ToLower(),
-                                                        "[^a-zA-Z0-9_]", "")))
+                                                // External AWACS Mode (EAM) profile. Has to be `eam.cfg`.
+                                                foreach (var profileName in _globalSettings.ProfileSettingsStore
+                                                             .ProfileNames)
                                                 {
-                                                    ControlsProfile.SelectedItem = profileName;
-                                                    return;
+                                                    if (profileName.Trim().ToLower() == "eam")
+                                                    {
+                                                        ControlsProfile.SelectedItem = profileName;
+                                                        return;
+                                                    }
                                                 }
                                             }
 
