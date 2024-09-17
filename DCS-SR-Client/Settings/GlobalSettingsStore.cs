@@ -216,7 +216,10 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Settings
         ModifierIntercomPTT = 236,
 
         AwacsOverlayToggle = 137,
-        ModifierAwacsOverlayToggle = 237
+        ModifierAwacsOverlayToggle = 237,
+
+        TXInhibit = 138,
+        ModifierTXInhibit = 238,
     }
 
 
