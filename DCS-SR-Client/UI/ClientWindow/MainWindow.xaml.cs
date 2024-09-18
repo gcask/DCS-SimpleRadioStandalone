@@ -585,6 +585,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Client.UI
             RadioVolumeUp.LoadInputSettings();
             RadioVolumeDown.LoadInputSettings();
             AwacsOverlayToggle.LoadInputSettings();
+            TXInhibit.LoadInputSettings();
         }
 
         private void ReloadRadioAudioChannelSettings()
