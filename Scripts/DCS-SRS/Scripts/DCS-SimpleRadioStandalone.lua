@@ -1020,11 +1020,11 @@ function SR.exportRadioAH64D(_data)
 
     if (_mpdLeft or _mpdRight) then
         if _mpdLeft["Mode_S_Codes_Window_text_1"] then -- We're on the XPNDR page on the LEFT MPD
-            _ah64Mode1Persist = _mpdLeft["PB24_9"] == "}1" and -1 or string.format("%02d", _mpdLeft["PB7_23"])
+            _ah64Mode1Persist = _mpdLeft["PB24_9"] == "}1" and -1 or tonumber(string.format("%02d", _mpdLeft["PB7_23"]))
         end
 
         if _mpdRight["Mode_S_Codes_Window_text_1"] then -- We're on the XPNDR page on the RIGHT MPD
-            _ah64Mode1Persist = _mpdRight["PB24_9"] == "}1" and -1 or string.format("%02d", _mpdRight["PB7_23"])
+            _ah64Mode1Persist = _mpdRight["PB24_9"] == "}1" and -1 or tonumber(string.format("%02d", _mpdRight["PB7_23"]))
         end
     end
 
