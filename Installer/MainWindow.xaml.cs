@@ -464,7 +464,7 @@ namespace Installer
             ProcessStartInfo procInfo = new ProcessStartInfo
             {
                 WorkingDirectory = path,
-                FileName = (path + "\\" + "sr-server.exe"),
+                FileName = (path + "\\Server\\" + "srs-server.exe"),
                 UseShellExecute = false
             };
             Process.Start(procInfo);

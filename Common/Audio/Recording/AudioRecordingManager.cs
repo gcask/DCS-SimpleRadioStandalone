@@ -274,6 +274,9 @@ public class AudioRecordingManager
 
     internal void AppendClientAudio(int radioId, IReadOnlyList<TransmissionSegment> segments)
     {
+        if (_stop || GlobalSettingsStore.Instance.GetClientSettingBool(GlobalSettingsKeys.RecordAudio) == false)
+            return;
+        
         // Audio is preprocessed, all we need to do is run the filtering and mixdown.
         var floatPool = ArrayPool<float>.Shared;
 

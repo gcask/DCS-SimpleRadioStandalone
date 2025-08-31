@@ -1,4 +1,4 @@
--- Version 2.3.0.0
+-- Version 2.3.0.1
 
 -- Special thanks to Cap. Zeen, Tarres and Splash for all the help
 -- with getting the radio information :)
@@ -394,11 +394,13 @@ function SR.exporter()
             _update = aircraftExporter(_update)
         end
 
-        -- Disable camera position if you're not in a vehicle now
-        --local _latLng,_point = SR.exportCameraLocation()
-        --
-        --_update.latLng = _latLng
-        --SR.lastKnownPos = _point
+        -- Use vehicle position if we have one so when you join a vehicle you get LOS etc
+        if _data ~= nil then
+            local _latLng,_point = SR.exportPlayerLocation(_data)
+
+            _update.latLng = _latLng
+            SR.lastKnownPos = _point
+        end
 
         _lastUnitId = ""
         _lastUnitType = ""
@@ -7981,4 +7983,4 @@ end
 -- Load mods' SRS plugins
 SR.LoadModsPlugins()
 
-SR.log("Loaded SimpleRadio Standalone Export version: 2.3.0.0")
+SR.log("Loaded SimpleRadio Standalone Export version: 2.3.0.1")
