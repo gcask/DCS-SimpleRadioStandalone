@@ -8,13 +8,30 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
 
 public sealed class ConnectedClientsSingleton : PropertyChangedBaseClass
 {
+    private static volatile ConnectedClientsSingleton _instance;
+    private static readonly object _lock = new();
+    private readonly SyncedServerSettings _serverSettings = SyncedServerSettings.Instance;
+
     private ConnectedClientsSingleton()
     {
     }
 
     public ConcurrentDictionary<string, SRClientBase> Clients { get; } = new();
 
-    public static ConnectedClientsSingleton Instance { get; } = new();
+    public static ConnectedClientsSingleton Instance
+    {
+        get
+        {
+            if (_instance == null)
+                lock (_lock)
+                {
+                    if (_instance == null)
+                        _instance = new ConnectedClientsSingleton();
+                }
+
+            return _instance;
+        }
+    }
 
     public SRClientBase this[string key]
     {

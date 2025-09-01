@@ -11,6 +11,8 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
 
 public class SyncedServerSettings
 {
+    private static SyncedServerSettings instance;
+    private static readonly object _lock = new();
     private static readonly Dictionary<string, string> defaults = DefaultServerSettings.Defaults;
 
     private readonly ConcurrentDictionary<string, string> _settings;
@@ -36,7 +38,18 @@ public class SyncedServerSettings
     // Node Limit of 0 means no retransmission
     public int RetransmitNodeLimit { get; set; }
 
-    public static SyncedServerSettings Instance { get; } = new();
+    public static SyncedServerSettings Instance
+    {
+        get
+        {
+            lock (_lock)
+            {
+                if (instance == null) instance = new SyncedServerSettings();
+            }
+
+            return instance;
+        }
+    }
 
 
     public string GetSetting(ServerSettingsKeys key)

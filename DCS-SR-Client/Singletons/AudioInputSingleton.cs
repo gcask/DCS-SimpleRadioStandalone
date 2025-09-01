@@ -15,7 +15,23 @@ public class AudioInputSingleton
 
     #region Singleton Definition
 
-    public static AudioInputSingleton Instance { get; } = new();
+    private static volatile AudioInputSingleton _instance;
+    private static readonly object _lock = new();
+
+    public static AudioInputSingleton Instance
+    {
+        get
+        {
+            if (_instance == null)
+                lock (_lock)
+                {
+                    if (_instance == null)
+                        _instance = new AudioInputSingleton();
+                }
+
+            return _instance;
+        }
+    }
 
     #endregion
 

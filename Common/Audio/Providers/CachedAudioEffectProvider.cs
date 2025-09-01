@@ -11,6 +11,8 @@ public class CachedAudioEffectProvider
 {
     public delegate Stream CachedEffectsLoaderDelegate(string fileName);
 
+    private static CachedAudioEffectProvider _instance;
+
     private readonly string sourceFolder;
 
     private CachedAudioEffectProvider()
@@ -30,7 +32,15 @@ public class CachedAudioEffectProvider
     public List<CachedAudioEffect> IntercomTransmissionStart { get; set; }
     public List<CachedAudioEffect> IntercomTransmissionEnd { get; set; }
 
-    public static CachedAudioEffectProvider Instance { get; } = new();
+    public static CachedAudioEffectProvider Instance
+    {
+        get
+        {
+            if (_instance == null) _instance = new CachedAudioEffectProvider();
+            //stops cyclic init
+            return _instance;
+        }
+    }
 
     public CachedAudioEffect SelectedRadioTransmissionStartEffect
     {

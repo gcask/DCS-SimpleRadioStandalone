@@ -26,6 +26,9 @@ public sealed class ClientStateSingleton : PropertyChangedBaseClass, IHandle<TCP
 {
     public delegate bool RadioUpdatedCallback();
 
+    private static volatile ClientStateSingleton _instance;
+    private static readonly object _lock = new();
+
     private static readonly DispatcherTimer _timer = new();
     private readonly DCSAutoConnectHandler _dcsAutoConnectHandler;
     
@@ -169,7 +172,20 @@ public sealed class ClientStateSingleton : PropertyChangedBaseClass, IHandle<TCP
 
     public VAICOMMessageWrapper InhibitTX { get; set; } = new(); //used to temporarily stop PTT for VAICOM
 
-    public static ClientStateSingleton Instance { get; } = new();
+    public static ClientStateSingleton Instance
+    {
+        get
+        {
+            if (_instance == null)
+                lock (_lock)
+                {
+                    if (_instance == null)
+                        _instance = new ClientStateSingleton();
+                }
+
+            return _instance;
+        }
+    }
 
     public int IntercomOffset { get; set; }
 

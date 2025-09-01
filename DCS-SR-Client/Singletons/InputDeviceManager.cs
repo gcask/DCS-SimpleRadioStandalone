@@ -801,7 +801,23 @@ public class InputDeviceManager : IDisposable
 
     #region Singleton Definition
 
-    public static InputDeviceManager Instance { get; } = new();
+    private static volatile InputDeviceManager _instance;
+    private static readonly object _lock = new();
+
+    public static InputDeviceManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+                lock (_lock)
+                {
+                    if (_instance == null)
+                        _instance = new InputDeviceManager();
+                }
+
+            return _instance;
+        }
+    }
 
     #endregion
 }
