@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.LotATC;
@@ -31,6 +32,7 @@ public class DCSRadioSyncManager
     private readonly UDPCommandHandler _udpCommandHandler;
 
     private VAICOMSyncHandler _vaicomHandler;
+    private CancellationTokenSource Cancellation = new();
 
     public DCSRadioSyncManager(string guid)
     {
@@ -78,7 +80,7 @@ public class DCSRadioSyncManager
         _dcsRadioSyncHandler.Start();
         _dcsGameGuiHandler.Start();
         _lineOfSightHandler.Start();
-        _udpCommandHandler.Start();
+        _udpCommandHandler.Start(Cancellation.Token);
         _clearRadio.Start();
         _vaicomHandler.Start();
         _lotATCSyncHandler.Start();
@@ -87,7 +89,7 @@ public class DCSRadioSyncManager
     public void Stop()
     {
         IsListening = false;
-
+        Cancellation.Cancel();
         _clearRadio.Stop();
         _dcsRadioSyncHandler.Stop();
         _dcsGameGuiHandler.Stop();

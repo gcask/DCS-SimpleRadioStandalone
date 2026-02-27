@@ -50,6 +50,8 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         }
 
         readonly Client client = new();
+        readonly CancellationTokenSource _cts = new();
+        readonly CommandService _commandService;
 
         sealed class EndPoints
         {
@@ -68,7 +70,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
             public static readonly IPEndPoint PlayerUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.PlayerUpdate);
             public static readonly IPEndPoint Connect = new IPEndPoint(IPAddress.Loopback, (int)Ports.Connect);
-            public static readonly IPEndPoint Command = new IPEndPoint(IPAddress.Loopback, (int)Ports.Command);
             public static readonly IPEndPoint RadioUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.RadioUpdate);
             public static readonly IPEndPoint LOSResults = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSResults);
             public static readonly IPEndPoint LOSRequests = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSRequests);
@@ -151,6 +152,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
         SRS()
         {
+            _commandService = new(@"command", _cts.Token);
             radioUpdatesWorker = Task.Run(RadioUpdateHandler);
             losRequestsWorker = Task.Run(LOSRequestHandler);
         }
@@ -398,7 +400,18 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
         static int Send_Command(IntPtr state)
         {
-            return ForwardMessage(state, EndPoints.Command);
+            var lua = new State(state);
+            try
+            {
+                Instance._commandService.SendAsync(lua.CheckString(1));
+            }
+            catch (Exception e)
+            {
+                lua.Push(e.Message);
+                return Native.lua_error(lua.Handle);
+            }
+
+            return 0;
         }
 
         static int Send_Connect(IntPtr state)

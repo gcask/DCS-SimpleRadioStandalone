@@ -41,7 +41,6 @@ public enum GlobalSettingsKeys
     ClientIdLong,
     DCSLOSOutgoingUDP, //9086
     DCSIncomingUDP, //9084
-    CommandListenerUDP, //=9040,
     OutgoingDCSUDPInfo, //7080
     OutgoingDCSUDPOther, //7082
     DCSIncomingGameGUIUDP, // 5068
@@ -291,7 +290,6 @@ public class GlobalSettingsStore
 
         { GlobalSettingsKeys.DCSLOSOutgoingUDP.ToString(), "9086" },
         { GlobalSettingsKeys.DCSIncomingUDP.ToString(), "9084" },
-        { GlobalSettingsKeys.CommandListenerUDP.ToString(), "9040" },
         { GlobalSettingsKeys.OutgoingDCSUDPInfo.ToString(), "7080" },
         { GlobalSettingsKeys.OutgoingDCSUDPOther.ToString(), "7082" },
         { GlobalSettingsKeys.DCSIncomingGameGUIUDP.ToString(), "5068" },
