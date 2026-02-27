@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
@@ -7,6 +8,49 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
     internal struct State
     {
         public IntPtr Handle { get; }
+
+        public sealed class TableBuilder : IDisposable
+        {
+            State State { get; }
+            public TableBuilder(State state, int arrayCount, int kvCount)
+            {
+                State = state;
+                Native.lua_createtable(State.Handle, arrayCount, kvCount);
+            }
+
+            public TableBuilder AddField(string name, string value)
+            {
+                State.Push(value);
+                State.SetField(-2, name);
+                return this;
+            }
+
+            public TableBuilder AddField(string name, bool value)
+            {
+                State.Push(value);
+                State.SetField(-2, name);
+                return this;
+            }
+
+            public TableBuilder AddField(string name, int value)
+            {
+                State.Push(value);
+                State.SetField(-2, name);
+                return this;
+            }
+
+            public TableBuilder AddField(string name, double value)
+            {
+                State.Push(value);
+                State.SetField(-2, name);
+                return this;
+            }
+
+            public void Dispose()
+            {
+                // No op, just used for scoping.
+            }
+        }
 
         public static Native.Register CreateRegister(string name, Native.LuaFunction func)
         {
@@ -67,9 +111,19 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             Native.lua_pushinteger(Handle, value);
         }
 
+        public void Push(double value)
+        {
+            Native.lua_pushnumber(Handle, value);
+        }
+
         public bool IsTable(int index)
         {
             return Native.lua_istable(Handle, index);
+        }
+
+        public TableBuilder CreateTable(int arrayCount, int kvCount)
+        {
+            return new TableBuilder(this, arrayCount, kvCount);
         }
 
         public void GetField(int index, string field)
