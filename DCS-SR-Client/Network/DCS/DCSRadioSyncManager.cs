@@ -38,7 +38,7 @@ public class DCSRadioSyncManager
     {
         IsListening = false;
         _lineOfSightHandler = new DCSLineOfSightHandler(guid);
-        _udpCommandHandler = new UDPCommandHandler();
+        
         _dcsGameGuiHandler = new DCSGameGuiHandler();
         _dcsRadioSyncHandler = new DCSRadioSyncHandler();
         _vaicomHandler = new VAICOMSyncHandler();
@@ -80,7 +80,6 @@ public class DCSRadioSyncManager
         _dcsRadioSyncHandler.Start();
         _dcsGameGuiHandler.Start();
         _lineOfSightHandler.Start();
-        _udpCommandHandler.Start(Cancellation.Token);
         _clearRadio.Start();
         _vaicomHandler.Start();
         _lotATCSyncHandler.Start();
@@ -94,7 +93,6 @@ public class DCSRadioSyncManager
         _dcsRadioSyncHandler.Stop();
         _dcsGameGuiHandler.Stop();
         _lineOfSightHandler.Stop();
-        _udpCommandHandler.Stop();
         _vaicomHandler.Stop();
         _lotATCSyncHandler.Stop();
     }

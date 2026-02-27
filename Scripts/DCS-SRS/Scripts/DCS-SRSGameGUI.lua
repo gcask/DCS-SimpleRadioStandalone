@@ -130,7 +130,7 @@ end
 -- Register callbacks --
 
 SRS.sendConnect = function(_message)
-	srs.send_connect(_message)
+	SRS.sendCommand({command = srs.commands.CONNECT, address = _message})
 end
 
 SRS.sendCommand = function(_message)

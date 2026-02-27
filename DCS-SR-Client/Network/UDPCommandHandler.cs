@@ -1,5 +1,7 @@
-﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.UI.ClientWindow;
+using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
 using NLog;
 using System;
 using System.IO;
@@ -8,6 +10,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Threading;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network;
 
@@ -22,36 +26,95 @@ public class UDPCommandHandler
 
     private void ApplyCommand(UDPInterfaceCommand message)
     {
-        if (message?.Command == UDPInterfaceCommand.UDPCommandType.FREQUENCY_DELTA)
-            RadioHelper.UpdateRadioFrequency(message.Frequency, message.RadioId);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.FREQUENCY_SET)
-            RadioHelper.UpdateRadioFrequency(message.Frequency, message.RadioId, false);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.ACTIVE_RADIO)
-            RadioHelper.SelectRadio(message.RadioId);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.TOGGLE_GUARD)
-            RadioHelper.ToggleGuard(message.RadioId);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.GUARD)
-            RadioHelper.SetGuard(message.RadioId, message.Enabled);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.CHANNEL_UP)
-            RadioHelper.RadioChannelUp(message.RadioId);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.CHANNEL_DOWN)
-            RadioHelper.RadioChannelDown(message.RadioId);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.SET_VOLUME)
-            RadioHelper.SetRadioVolume(message.Volume, message.RadioId);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.TRANSPONDER_POWER)
-            TransponderHelper.SetPower(message.Enabled);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M1_CODE)
-            TransponderHelper.SetMode1(message.Code);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M2_CODE)
-            TransponderHelper.SetMode2(message.Code);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M3_CODE)
-            TransponderHelper.SetMode3(message.Code);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M4)
-            TransponderHelper.SetMode4(message.Enabled);
-        else if (message?.Command == UDPInterfaceCommand.UDPCommandType.TRANSPONDER_IDENT)
-            TransponderHelper.SetIdent(message.Enabled);
-        else
-            Logger.Error("Unknown UDP Command!");
+        switch (message?.Command)
+        {
+            case UDPInterfaceCommand.UDPCommandType.FREQUENCY_DELTA:
+                RadioHelper.UpdateRadioFrequency(message.Frequency, message.RadioId);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.FREQUENCY_SET:
+                RadioHelper.UpdateRadioFrequency(message.Frequency, message.RadioId, false);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.ACTIVE_RADIO:
+                RadioHelper.SelectRadio(message.RadioId);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.TOGGLE_GUARD:
+                RadioHelper.ToggleGuard(message.RadioId);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.GUARD:
+                RadioHelper.SetGuard(message.RadioId, message.Enabled);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.CHANNEL_UP:
+                RadioHelper.RadioChannelUp(message.RadioId);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.CHANNEL_DOWN:
+                RadioHelper.RadioChannelDown(message.RadioId);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.SET_VOLUME:
+                RadioHelper.SetRadioVolume(message.Volume, message.RadioId);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_POWER:
+                TransponderHelper.SetPower(message.Enabled);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M1_CODE:
+                TransponderHelper.SetMode1(message.Code);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M2_CODE:
+                TransponderHelper.SetMode2(message.Code);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M3_CODE:
+                TransponderHelper.SetMode3(message.Code);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M4:
+                TransponderHelper.SetMode4(message.Enabled);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_IDENT:
+                TransponderHelper.SetIdent(message.Enabled);
+                break;
+            case UDPInterfaceCommand.UDPCommandType.CONNECT:
+                ExecuteConnect(message.Address);
+                break;
+            default:
+                Logger.Error("Unknown UDP Command!");
+                break;
+        }
+    }
+
+    private void ExecuteConnect(string desired)
+    {
+        Application.Current.Dispatcher.InvokeAsync(async () =>
+        {
+            try
+            {
+                desired = desired.Trim();
+                var address = desired.Split(':');
+                AutoConnectMessage message = null;
+                if (desired.Contains(':'))
+                {
+                    message = new AutoConnectMessage()
+                    {
+                        Address = $"{address[0].Trim()}:{address[1].Trim()}"
+                    };
+                }
+                else
+                {
+                    message = new AutoConnectMessage()
+                    {
+                        Address = $"{address[0].Trim()}:5002"
+                    };
+                }
+
+                if (message != null)
+                {
+                    await EventBus.Instance.PublishOnUIThreadAsync(message);
+                }
+            
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Exception Parsing DCS AutoConnect Message");
+            }
+
+        }, DispatcherPriority.Background);
     }
 
     private void StartUDPCommandListener(CancellationToken token)

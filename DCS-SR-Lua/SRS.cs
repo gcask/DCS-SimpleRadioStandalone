@@ -1,7 +1,7 @@
 ﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client;
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
@@ -62,7 +62,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             {
                 // FROM DCS-SRSGameGUI.lua
                 PlayerUpdate = 5068,
-                Connect = 5069,
                 // TO DCS-SRS-OverlayGameGUI.lua
                 RadioUpdate = 7080,
                 LOSRequests = 9086,
@@ -71,7 +70,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             }
 
             public static readonly IPEndPoint PlayerUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.PlayerUpdate);
-            public static readonly IPEndPoint Connect = new IPEndPoint(IPAddress.Loopback, (int)Ports.Connect);
             public static readonly IPEndPoint RadioUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.RadioUpdate);
             public static readonly IPEndPoint LOSResults = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSResults);
             public static readonly IPEndPoint LOSRequests = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSRequests);
@@ -168,7 +166,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             State.CreateRegister("update_player_info", Update_Player_Info),
             State.CreateRegister("get_player_info", Get_Player_Info),
             State.CreateRegister("send_command", Send_Command),
-            State.CreateRegister("send_connect", Send_Connect),
             State.CreateRegister("get_radio_update", Get_Radio_Update),
             State.CreateRegister("get_los_requests", Get_LOS_Requests),
             State.CreateRegister("send_los_results", Send_LOS_Results),
@@ -431,11 +428,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             }
 
             return 0;
-        }
-
-        static int Send_Connect(IntPtr state)
-        {
-            return ForwardMessage(state, EndPoints.Connect);
         }
 
         static int Get_Radio_Update(IntPtr state)

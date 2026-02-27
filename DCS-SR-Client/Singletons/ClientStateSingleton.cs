@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using Caliburn.Micro;
+using Ciribob.DCS.SimpleRadio.Standalone.Client.Network;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.Models;
@@ -30,8 +31,8 @@ public sealed class ClientStateSingleton : PropertyChangedBaseClass, IHandle<TCP
     private static readonly object _lock = new();
 
     private static readonly DispatcherTimer _timer = new();
-    private readonly DCSAutoConnectHandler _dcsAutoConnectHandler;
-    
+    private readonly UDPCommandHandler _udpCommandHandler = new ();
+
 
     private bool isConnected;
 
@@ -75,7 +76,7 @@ public sealed class ClientStateSingleton : PropertyChangedBaseClass, IHandle<TCP
 
         EventBus.Instance.SubscribeOnUIThread(this);
 
-        _dcsAutoConnectHandler = new DCSAutoConnectHandler();
+        _udpCommandHandler.Start(default);
     }
 
     public DCSPlayerRadioInfo DcsPlayerRadioInfo { get; }
@@ -271,6 +272,6 @@ public sealed class ClientStateSingleton : PropertyChangedBaseClass, IHandle<TCP
 
     public void Close()
     {
-        _dcsAutoConnectHandler?.Stop();
+        _udpCommandHandler.Stop();
     }
 }

@@ -86,7 +86,6 @@ public enum GlobalSettingsKeys
 
     LotATCHeightOffset,
 
-    DCSAutoConnectUDP, // 5069
     ShowTransmitterName,
 
     IdleTimeOut,
@@ -294,7 +293,6 @@ public class GlobalSettingsStore
         { GlobalSettingsKeys.OutgoingDCSUDPOther.ToString(), "7082" },
         { GlobalSettingsKeys.DCSIncomingGameGUIUDP.ToString(), "5068" },
         { GlobalSettingsKeys.DCSLOSIncomingUDP.ToString(), "9085" },
-        { GlobalSettingsKeys.DCSAutoConnectUDP.ToString(), "5069" },
 
         { GlobalSettingsKeys.Denoise.ToString(), "true" },
         { GlobalSettingsKeys.DenoiseAttenuation.ToString(), "-30" },
