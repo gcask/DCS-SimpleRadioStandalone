@@ -1,3 +1,6 @@
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client;
 ﻿using Microsoft.Win32;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -180,6 +183,25 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             try
             {
                 lua.Register("srs", registry);
+
+                // push constants.
+                lua.Push(UpdaterChecker.VERSION);
+                lua.SetField(-2, "VERSION");
+
+                // Push UDP commands named constants.
+                var names = Enum.GetNames(typeof(UDPInterfaceCommand.UDPCommandType));
+                // not an array, as many entries as we have in the list.
+                using (var builder = lua.CreateTable(0, names.Length))
+                {
+                    foreach (var name in names)
+                    {
+                        builder.AddField(name, (int)Enum.Parse<UDPInterfaceCommand.UDPCommandType>(name));
+                    }
+                }
+
+                // Register the table on the main one.
+                lua.SetField(-2, "commands");
+
             }
             catch (Exception e)
             {
@@ -344,16 +366,14 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             try
             {
                 PlayerInfo info = Instance.Info;
-                Native.lua_createtable(lua.Handle, 0, 4); // not an array, 4 key-based entries.
-
-                lua.Push(info.name);
-                lua.SetField(-2, "name");
-                lua.Push(info.slot);
-                lua.SetField(-2, "slot");
-                lua.Push(info.side);
-                lua.SetField(-2, "side");
-                lua.Push(info.seat);
-                lua.SetField(-2, "seat");
+                // not an array, 4 key-based entries.
+                using (var builder = lua.CreateTable(0, 4))
+                {
+                    builder.AddField("name", info.name);
+                    builder.AddField("slot", info.slot);
+                    builder.AddField("side", info.side);
+                    builder.AddField("seat", info.seat);
+                }
             }
             catch (Exception e)
             {
