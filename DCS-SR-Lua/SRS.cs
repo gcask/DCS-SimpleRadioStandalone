@@ -60,7 +60,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 // FROM DCS-SRSGameGUI.lua
                 PlayerUpdate = 5068,
                 Connect = 5069,
-                Command = 9040,
                 // TO DCS-SRS-OverlayGameGUI.lua
                 RadioUpdate = 7080,
                 LOSRequests = 9086,
