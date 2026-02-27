@@ -54,14 +54,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 Utf8StringMarshaller.Free(unmanaged.Name);
             }
 
-            public static Register ConvertToManaged(RegisterUnmanaged unmanaged)
-            {
-                return new()
-                {
-                    name = Utf8StringMarshaller.ConvertToManaged(unmanaged.Name),
-                    function = unmanaged.Function != IntPtr.Zero ? Marshal.GetDelegateForFunctionPointer<LuaFunction>(unmanaged.Function) : null
-                };
-            }
+            public static Register ConvertToManaged(RegisterUnmanaged unmanaged) => throw new NotImplementedException();
         }
 
         internal enum Types
@@ -84,7 +77,8 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         internal static partial void lua_pushlstring(lua_State L, string buffer, UIntPtr len);
 
         [LibraryImport("lua", StringMarshalling = StringMarshalling.Utf8)]
-        internal static unsafe partial byte* luaL_checklstring(lua_State L, int numArg, out UIntPtr len);
+        internal static partial IntPtr luaL_checklstring(lua_State L, int numArg, out UIntPtr len);
+
         [LibraryImport("lua")]
         internal static partial IntPtr luaL_checkinteger(lua_State L, int narg);
 

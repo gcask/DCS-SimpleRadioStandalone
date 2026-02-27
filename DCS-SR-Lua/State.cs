@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 {
@@ -6,7 +7,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
     internal struct State
     {
         public IntPtr Handle { get; }
-        static readonly Encoding Encoding = Encoding.UTF8;
 
         public static Native.Register CreateRegister(string name, Native.LuaFunction func)
         {
@@ -29,16 +29,15 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
         public string CheckString(int arg)
         {
-            unsafe
+            
+            UIntPtr len;
+            var bytes = Native.luaL_checklstring(Handle, arg, out len);
+            if (len == 0)
             {
-                UIntPtr len;
-                var bytes = Native.luaL_checklstring(Handle, arg, out len);
-                if (len == 0)
-                {
-                    return string.Empty;
-                }
-                return Encoding.GetString(bytes, (int)len);
+                return string.Empty;
             }
+
+            return Marshal.PtrToStringUTF8(bytes, (int)len);
         }
 
         public int CheckInteger(int arg)
