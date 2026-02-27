@@ -135,25 +135,10 @@ dotnet publish "./AutoUpdater\AutoUpdater.csproj" `
     --no-self-contained `
     @commonParams
 
-
-
-# SRS Lua Wrapper
-Write-Host "Building SRS-Lua-Wrapper..." -ForegroundColor Green
-Remove-Item "$outputPath\Scripts" -Recurse -ErrorAction SilentlyContinue
-Write-Host "Copy Scripts..." -ForegroundColor Green
-Copy-Item "./Scripts" -Destination "$outputPath\Scripts" -Recurse
-&  $MSBuildExe `
-    ".\SRS-Lua-Wrapper\SRS-Lua-Wrapper.vcxproj" `
-    /p:Configuration=Release `
-    /p:Platform=x64 `
-    /t:Rebuild
-
-# Create directory and copy the built DLL
-New-Item -ItemType Directory -Force -Path "$outputPath\Scripts\DCS-SRS\bin"
-Copy-Item ".\SRS-Lua-Wrapper\x64\Release\srs.dll" -Destination "$outputPath\Scripts\DCS-SRS\bin"
-
 # SRS Lua .NET
 Write-Host "Building lua-srs.dll..." -ForegroundColor Green
+Remove-Item "$outputPath/Scripts/DCS-SRS/bin" -Recurse -ErrorAction SilentlyContinue
+dotnet clean "./DCS-SR-Lua/DCS-SR-Lua.csproj"
 dotnet publish "./DCS-SR-Lua/DCS-SR-Lua.csproj" `
     --runtime win-x64 `
     --output "$outputPath/Scripts/DCS-SRS/bin" `
@@ -205,7 +190,7 @@ if ($NoSign) {
     Write-Host "Searching for .dll and .exe files in '$searchPath' and its subdirectories..."
     # Get all .exe files recursively. -File ensures we only get files.
     try {
-        $filesToSign = Get-ChildItem -Path $searchPath -Recurse -Include "lua-srs.dll", "srs.dll", "*.exe" -File -ErrorAction Stop
+        $filesToSign = Get-ChildItem -Path $searchPath -Recurse -Include "lua-srs.dll", "*.exe" -File -ErrorAction Stop
     } catch {
         Write-Error "Error occurred while searching for files: $($_.Exception.Message)"
         exit 1
