@@ -1,4 +1,4 @@
-﻿namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network;
+﻿namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
 
 public class UDPInterfaceCommand
 {
