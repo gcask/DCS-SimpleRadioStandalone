@@ -25,29 +25,22 @@ function SRS.debug(str)
 	log.write('SRS-GameGUI', log.DEBUG, str)
 end
 
-package.path  = package.path..";.\\LuaSocket\\?.lua;"
-package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
-package.cpath = package.cpath..";"..lfs.writedir().."Mods\\Services\\DCS-SRS\\bin\\?.dll;"
-
-local socket = require("socket")
+package.cpath = package.cpath..";"..lfs.writedir().. [[Mods\\Services\\DCS-SRS\\bin\\lua-?.dll;]]
 
 local srs = nil
 
 pcall(function()
-	srs = require("srs")
+	srs = safe_require("srs")
 
-	SRS.log("Loaded SRS.dll")
+	SRS.log("Loaded SRS module")
 end)
 
 if not srs then
-	SRS.error("Couldnt load SRS.dll")
+	SRS.error("Couldnt load SRS module")
 end
 
 local JSON = loadfile("Scripts\\JSON.lua")()
 SRS.JSON = JSON
-
-SRS.UDPSendSocket = socket.udp()
-SRS.UDPSendSocket:settimeout(0)
 
 local _lastSent = 0;
 
@@ -107,10 +100,8 @@ SRS.sendUpdate = function(playerID)
 		end
 	end
 
-	local _jsonUpdate = SRS.JSON:encode(_update).." \n"
 	--SRS.log("Update -  Slot  ID:"..playerID.." Name: ".._update.name.." Side: ".._update.side)
-	socket.try(SRS.UDPSendSocket:sendto(_jsonUpdate, "127.0.0.1", 5068))
-	socket.try(SRS.UDPSendSocket:sendto(_jsonUpdate, "127.0.0.1", 9087))
+	srs.update_player_info(_update);
 end
 
 SRS.MESSAGE_PATTERN_OLDER = "This server is running SRS on - ([%w%.%-_:]+)" -- DO NOT MODIFY!!!
@@ -139,13 +130,11 @@ end
 -- Register callbacks --
 
 SRS.sendConnect = function(_message)
-	socket.try(SRS.UDPSendSocket:sendto(_message.."\n", "127.0.0.1", 5069))
+	srs.send_connect(_message)
 end
 
 SRS.sendCommand = function(_message)
-
-    socket.try(SRS.UDPSendSocket:sendto(SRS.JSON:encode(_message).."\n", "127.0.0.1", 9040))
-   
+	srs.send_command(SRS.JSON:encode(_message))
 end
 
 SRS.findCommandValue = function(key, list)

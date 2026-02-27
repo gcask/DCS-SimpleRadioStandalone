@@ -7,8 +7,8 @@ log.write('SRS-OverlayGameGUI', log.INFO, "Loading - DCS-SRS Overlay GameGUI - C
 
 local base = _G
 
-package.path  = package.path..";.\\LuaSocket\\?.lua;"..'.\\Scripts\\?.lua;'.. '.\\Scripts\\UI\\?.lua;'
-package.cpath = package.cpath..";.\\LuaSocket\\?.dll;"
+package.path  = package.path..'.\\Scripts\\?.lua;'.. '.\\Scripts\\UI\\?.lua;'
+package.cpath = package.cpath..";"..lfs.writedir().. [[Mods\\Services\\DCS-SRS\\bin\\lua-?.dll;]]
 
 local JSON = loadfile("Scripts\\JSON.lua")()
 
@@ -24,13 +24,13 @@ local assert            = base.assert
 local pairs             = base.pairs
 
 local lfs               = require('lfs')
-local socket            = require("socket") 
 local net               = require('net')
 local DCS               = require("DCS") 
 local U                 = require('me_utilities')
 local Skin              = require('Skin')
 local Gui               = require('dxgui')
 local DialogLoader      = require('DialogLoader')
+local srs               = safe_require('srs')
 local Static            = require('Static')
 local Tools             = require('tools')
 local log               = require('log')
@@ -44,7 +44,6 @@ local _modes = {
 }
 
 local _isWindowCreated = false
-local _listenSocket = {}
 local _radioState = {}
 local _listStatics = {} -- placeholder objects
 local _listMessages = {} -- data
@@ -60,6 +59,22 @@ local _lastReceived = 0
 local srsOverlay = { 
     connection = nil
 }
+
+function srsOverlay.log(str)
+    if not str then 
+        return
+    end
+
+    log.write('SRS-OverlayGameGUI', log.INFO, str)
+end
+
+function srsOverlay.error(str)
+     if not str then 
+        return
+    end
+
+    log.write('SRS-OverlayGameGUI', log.ERROR, str)
+end
 
 
 srsOverlay.module_specific = {}
@@ -281,23 +296,6 @@ end
 function srsOverlay.saveConfiguration()
     U.saveInFile(srsOverlay.config, 'config', lfs.writedir() .. 'Config/SRSConfig.lua')
 end
-
-function srsOverlay.log(str)
-    if not str then 
-        return
-    end
-
-    log.write('SRS-OverlayGameGUI', log.INFO, str)
-end
-
-function srsOverlay.error(str)
-     if not str then 
-        return
-    end
-
-    log.write('SRS-OverlayGameGUI', log.ERROR, str)
-end
-
 
 function srsOverlay.updateRadio()    
 
@@ -782,23 +780,8 @@ function srsOverlay.positionCallback()
     srsOverlay.saveConfiguration()
 end
 
-
-
-function srsOverlay.initListener()
-
-_listenSocket = socket.udp()
-
---bind for listening for Radio info
-_listenSocket:setsockname("*", 7080)
-_listenSocket:settimeout(0) 
-
-end
-
 function srsOverlay.listen()
-
-    -- Receive buffer is 8192 in LUA Socket
-    -- will contain 10 clients for LOS
-    local _received = _listenSocket:receive()
+    local _received = srs.get_radio_update()
 
     if _received then
 
@@ -841,9 +824,6 @@ function srsOverlay.onSimulationFrame()
         if _isWindowCreated == false then
             srsOverlay.createWindow()
         end
-
-        -- init connection
-        srsOverlay.initListener()
     end
 
     if srsOverlay.listen() then

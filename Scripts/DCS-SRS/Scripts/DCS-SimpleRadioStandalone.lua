@@ -45,17 +45,10 @@ SR.RadioModels = {
     RSI_6K = "rsi6k",
 }
 
-SR.SEAT_INFO_PORT = 9087
-SR.LOS_RECEIVE_PORT = 9086
-SR.LOS_SEND_TO_PORT = 9085
-SR.RADIO_SEND_TO_PORT = 9084
-
 
 SR.LOS_HEIGHT_OFFSET = 20.0 -- sets the line of sight offset to simulate radio waves bending
 SR.LOS_HEIGHT_OFFSET_MAX = 200.0 -- max amount of "bend"
 SR.LOS_HEIGHT_OFFSET_STEP = 20.0 -- Interval to "bend" in
-
-SR.unicast = true --DONT CHANGE THIS
 
 SR.lastKnownPos = { x = 0, y = 0, z = 0 }
 SR.lastKnownSeat = 0
@@ -85,8 +78,10 @@ end
 
 SR.log("Loading SimpleRadio Standalone Export...")
 
-package.path = package.path .. ";.\\LuaSocket\\?.lua;"
-package.cpath = package.cpath .. ";.\\LuaSocket\\?.dll;"
+package.cpath = package.cpath .. ";" .. lfs.writedir() .. [[Mods\\Services\\DCS-SRS\\bin\\lua-?.dll;]]
+
+local srs = require('srs')
+SR.log('Loaded SRS module')
 
 ---- DCS Search Paths - So we can load Terrain!
 local guiBindPath = './dxgui/bind/?.lua;' ..
@@ -100,26 +95,12 @@ package.path = package.path .. ";"
         .. './MissionEditor/themes/main/?.lua;'
         .. './MissionEditor/modules/?.lua;'
         .. './Scripts/?.lua;'
-        .. './LuaSocket/?.lua;'
         .. './Scripts/UI/?.lua;'
         .. './Scripts/UI/Multiplayer/?.lua;'
         .. './Scripts/DemoScenes/?.lua;'
 
-local socket = require("socket")
-
 local JSON = loadfile("Scripts\\JSON.lua")()
 SR.JSON = JSON
-
-SR.UDPSendSocket = socket.udp()
-SR.UDPLosReceiveSocket = socket.udp()
-SR.UDPSeatReceiveSocket = socket.udp()
-
---bind for listening for LOS info
-SR.UDPLosReceiveSocket:setsockname("*", SR.LOS_RECEIVE_PORT)
-SR.UDPLosReceiveSocket:settimeout(0) --receive timer was 0001
-
-SR.UDPSeatReceiveSocket:setsockname("*", SR.SEAT_INFO_PORT)
-SR.UDPSeatReceiveSocket:settimeout(0) 
 
 local terrain = require('terrain')
 
@@ -433,18 +414,14 @@ function SR.exporter()
 
     _update.seat = SR.lastKnownSeat
 
-    if SR.unicast then
-        socket.try(SR.UDPSendSocket:sendto(SR.JSON:encode(_update) .. " \n", "127.0.0.1", SR.RADIO_SEND_TO_PORT))
-    else
-        socket.try(SR.UDPSendSocket:sendto(SR.JSON:encode(_update) .. " \n", "127.255.255.255", SR.RADIO_SEND_TO_PORT))
-    end
+    srs.update_export(SR.JSON:encode(_update))
 end
 
 
 function SR.readLOSSocket()
     -- Receive buffer is 8192 in LUA Socket
     -- will contain 10 clients for LOS
-    local _received = SR.UDPLosReceiveSocket:receive()
+    local _received = srs.get_los_requests()
 
     if _received then
         local _decoded = SR.JSON:decode(_received)
@@ -455,29 +432,19 @@ function SR.readLOSSocket()
 
             --DEBUG
             -- SR.log('LOS check ' .. SR.JSON:encode(_losList))
-            if SR.unicast then
-                socket.try(SR.UDPSendSocket:sendto(SR.JSON:encode(_losList) .. " \n", "127.0.0.1", SR.LOS_SEND_TO_PORT))
-            else
-                socket.try(SR.UDPSendSocket:sendto(SR.JSON:encode(_losList) .. " \n", "127.255.255.255", SR.LOS_SEND_TO_PORT))
-            end
+            srs.send_los_results(SR.JSON:encode(_losList))
         end
 
     end
 end
 
 function SR.readSeatSocket()
-    -- Receive buffer is 8192 in LUA Socket
-    local _received = SR.UDPSeatReceiveSocket:receive()
+    local _decoded = srs.get_player_info()
 
-    if _received then
-        local _decoded = SR.JSON:decode(_received)
-
-        if _decoded then
-            SR.lastKnownSeat = _decoded.seat
-            SR.lastKnownSlot = _decoded.slot
-            --SR.log("lastKnownSeat "..SR.lastKnownSeat)
-        end
-
+    if _decoded then
+        SR.lastKnownSeat = _decoded.seat
+        SR.lastKnownSlot = _decoded.slot
+        --SR.log("lastKnownSeat "..SR.lastKnownSeat)
     end
 end
 
