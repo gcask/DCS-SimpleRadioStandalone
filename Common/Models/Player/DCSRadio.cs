@@ -3,7 +3,7 @@ using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.Player;
 using System;
 
-namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
+namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 
 public class DCSRadio
 {

@@ -78,6 +78,9 @@ public class UDPCommandHandler
             case CommandType.PLAYER_INFO:
                 await ClientStateSingleton.Instance.UpdatePlayerInfoAsync(message.PlayerInfo);
                 break;
+            case CommandType.RADIO_INFO:
+
+                break;
             default:
                 Logger.Error("Unknown UDP Command!");
                 break;

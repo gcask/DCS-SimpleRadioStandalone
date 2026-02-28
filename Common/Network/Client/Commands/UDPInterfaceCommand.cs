@@ -1,5 +1,5 @@
-﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Player;
-using System.Text.Json.Serialization;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Player;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
 
@@ -21,6 +21,7 @@ public enum CommandType : int
     TRANSPONDER_M2_CODE,
     CONNECT,
     PLAYER_INFO,
+    RADIO_INFO,
 }
 
 public record SRSCommand
@@ -33,4 +34,5 @@ public record SRSCommand
     public int Code { get; set; }
     public string Address { get; set; }
     public DCSPlayerSideInfo PlayerInfo { get; set; }
+    public DCSPlayerRadioInfo RadioInfo { get; set; }
 }

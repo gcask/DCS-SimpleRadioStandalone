@@ -2,11 +2,10 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
-using Ciribob.DCS.SimpleRadio.Standalone.Common;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Models;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.Player;
 
-namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
+namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 
 public class DCSPlayerRadioInfo
 {

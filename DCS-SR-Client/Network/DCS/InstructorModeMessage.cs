@@ -1,4 +1,5 @@
 ﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS;
 
