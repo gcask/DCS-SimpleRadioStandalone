@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Caliburn.Micro;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models;
-using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
 using Ciribob.DCS.SimpleRadio.Standalone.Common;
@@ -27,7 +26,7 @@ using LogManager = NLog.LogManager;
 namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS;
 
 public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisconnectMessage>,
-    IHandle<TCPClientStatusMessage>, IHandle<InstructorModeMessage>
+    IHandle<TCPClientStatusMessage>, IHandle<InstructorModeMessage>, IHandle<RadioUpdateMessage>
 {
     public static readonly string AWACS_RADIOS_FILE = "awacs-radios.json";
     public static readonly string AWACS_RADIOS_CUSTOM_FILE = "awacs-radios-custom.json";
@@ -43,8 +42,6 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
 
     private readonly SyncedServerSettings _serverSettings = SyncedServerSettings.Instance;
     private UdpClient _dcsRadioUpdateSender;
-
-    private UdpClient _dcsUdpListener;
 
     private long _identStart;
 
@@ -81,77 +78,33 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
         return Task.CompletedTask;
     }
 
+    public Task HandleAsync(RadioUpdateMessage message, CancellationToken cancellationToken)
+    {
+        Logger.Debug($"Recevied Message from DCS {message}");
+
+        if (!string.IsNullOrWhiteSpace(message.RadioInfo.name) && message.RadioInfo.name != "Unknown" &&
+            message.RadioInfo.name != _clientStateSingleton.LastSeenName)
+            _clientStateSingleton.LastSeenName = message.RadioInfo.name;
+
+        _clientStateSingleton.DcsExportLastReceived = DateTime.Now.Ticks;
+
+        //Ignore DCS if we're in EAM mode
+        if (!_clientStateSingleton.ExternalAWACSModelSelected)
+        {
+            //sync with others
+            //Radio info is marked as Stale for FC3 aircraft after every frequency change
+            ProcessRadioInfo(message.RadioInfo);
+        }
+
+        return Task.CompletedTask;
+    }
+
     public void Start()
     {
-        EventBus.Instance.SubscribeOnUIThread(this);
+        EventBus.Instance.SubscribeOnPublishedThread(this);
         
         //reset last sent
         _clientStateSingleton.LastSent = 0;
-
-        Task.Factory.StartNew(() =>
-        {
-            while (!_stop)
-                try
-                {
-                    var localEp = new IPEndPoint(IPAddress.Any,
-                        _globalSettings.GetNetworkSetting(GlobalSettingsKeys.DCSIncomingUDP));
-                    _dcsUdpListener = new UdpClient(localEp);
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warn(ex,
-                        $"Unable to bind to the DCS Export Listener Socket Port: {_globalSettings.GetNetworkSetting(GlobalSettingsKeys.DCSIncomingUDP)}");
-                    Thread.Sleep(500);
-                }
-
-            while (!_stop)
-                try
-                {
-                    var groupEp = new IPEndPoint(IPAddress.Any, 0);
-                    var bytes = _dcsUdpListener.Receive(ref groupEp);
-
-                    var str = Encoding.UTF8.GetString(
-                        bytes, 0, bytes.Length).Trim();
-
-                    var message =
-                        JsonSerializer.Deserialize<DCSPlayerRadioInfo>(str, new JsonSerializerOptions() { IncludeFields = true });
-
-                    Logger.Debug($"Recevied Message from DCS {str}");
-
-                    if (!string.IsNullOrWhiteSpace(message.name) && message.name != "Unknown" &&
-                        message.name != _clientStateSingleton.LastSeenName)
-                        _clientStateSingleton.LastSeenName = message.name;
-
-                    _clientStateSingleton.DcsExportLastReceived = DateTime.Now.Ticks;
-                    
-                    //Ignore DCS if we're in EAM mode
-                    if (!_clientStateSingleton.ExternalAWACSModelSelected)
-                    {
-                        //sync with others
-                        //Radio info is marked as Stale for FC3 aircraft after every frequency change
-                        ProcessRadioInfo(message);
-                    }
-                }
-                catch (SocketException e)
-                {
-                    // SocketException is raised when closing app/disconnecting, ignore so we don't log "irrelevant" exceptions
-                    if (!_stop) Logger.Error(e, "SocketException Handling DCS Message");
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e, "Exception Handling DCS Message");
-                }
-
-            try
-            {
-                _dcsUdpListener.Close();
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e, "Exception stopping DCS listener ");
-            }
-        });
     }
 
 
@@ -597,13 +550,6 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
         EventBus.Instance.Unsubscribe(this);
         StopExternalAWACSModeLoop();
         _stop = true;
-        try
-        {
-            _dcsUdpListener?.Close();
-        }
-        catch (Exception)
-        {
-        }
 
         try
         {
@@ -621,8 +567,6 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
     private void StartExternalAWACSModeLoop(int coalition)
     {
         _stopExternalAWACSMode = false;
-
-    
 
         if (_globalSettings.ProfileSettingsStore.GetClientSettingBool(ProfileSettingsKeys
                 .AllowServerEAMRadioPreset))

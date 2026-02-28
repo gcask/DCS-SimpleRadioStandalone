@@ -70,14 +70,12 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 // TO DCS-SRS-OverlayGameGUI.lua
                 RadioUpdate = 7080,
                 LOSRequests = 9086,
-                LOSResults = 9085,
-                Export = 9084
+                LOSResults = 9085
             }
 
             public static readonly IPEndPoint RadioUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.RadioUpdate);
             public static readonly IPEndPoint LOSResults = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSResults);
             public static readonly IPEndPoint LOSRequests = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSRequests);
-            public static readonly IPEndPoint Export = new IPEndPoint(IPAddress.Loopback, (int)Ports.Export);
         }
 
         #region Radio Updates
@@ -173,7 +171,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             State.CreateRegister("get_radio_update", Get_Radio_Update),
             State.CreateRegister("get_los_requests", Get_LOS_Requests),
             State.CreateRegister("send_los_results", Send_LOS_Results),
-            State.CreateRegister("update_export", Update_Export),
             new()
         ];
 
@@ -456,11 +453,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         static int Send_LOS_Results(IntPtr state)
         {
             return ForwardMessage(state, EndPoints.LOSResults);
-        }
-
-        static int Update_Export(IntPtr state)
-        {
-            return ForwardMessage(state, EndPoints.Export);
         }
     }
 }

@@ -4,9 +4,9 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.Player;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings;
 using NLog;
 

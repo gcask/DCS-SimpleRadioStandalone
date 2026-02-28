@@ -1,8 +1,10 @@
-﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS;
+using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.UI.ClientWindow;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
 using NLog;
 using System;
@@ -79,12 +81,20 @@ public class UDPCommandHandler
                 await ClientStateSingleton.Instance.UpdatePlayerInfoAsync(message.PlayerInfo);
                 break;
             case CommandType.RADIO_INFO:
-
+                await PublishRadioInfoAsync(message.RadioInfo);
                 break;
             default:
                 Logger.Error("Unknown UDP Command!");
                 break;
         }
+    }
+
+    async Task PublishRadioInfoAsync(DCSPlayerRadioInfo info)
+    {
+        await EventBus.Instance.PublishOnBackgroundThreadAsync(new RadioUpdateMessage()
+        {
+            RadioInfo = info
+        });
     }
 
     private async Task ExecuteConnectAsync(string desired)

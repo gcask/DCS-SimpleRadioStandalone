@@ -414,7 +414,7 @@ function SR.exporter()
 
     _update.seat = SR.lastKnownSeat
 
-    srs.update_export(SR.JSON:encode(_update))
+    srs.send_command(SR.JSON:encode({command = srs.commands.RADIO_INFO, radioInfo = _update }))
 end
 
 
