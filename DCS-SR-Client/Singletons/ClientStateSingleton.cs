@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Threading;
 using Caliburn.Micro;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Network;
@@ -17,6 +18,7 @@ using Ciribob.DCS.SimpleRadio.Standalone.Common.Models;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.EventMessages;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.Player;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Player;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings.Setting;
 using RadioReceivingState = Ciribob.DCS.SimpleRadio.Standalone.Common.Models.RadioReceivingState;
@@ -245,7 +247,7 @@ public sealed class ClientStateSingleton : PropertyChangedBaseClass, IHandle<TCP
         foreach (var client in ConnectedClientsSingleton.Instance.Clients)
             if (!client.Key.Equals(ShortGUID))
                 // check that either coalition radio security is disabled OR the coalitions match
-                if (global || !coalitionSecurity || client.Value.Coalition == currentClientPos.side)
+                if (global || !coalitionSecurity || client.Value.Coalition == currentClientPos.Side)
                 {
                     var radioInfo = client.Value.RadioInfo;
 
@@ -268,6 +270,46 @@ public sealed class ClientStateSingleton : PropertyChangedBaseClass, IHandle<TCP
                 }
 
         return count;
+    }
+
+    public async Task UpdatePlayerInfoAsync(DCSPlayerSideInfo updatedPlayerInfo)
+    {
+        var currentInfo = PlayerCoaltionLocationMetadata;
+
+        var changed = !updatedPlayerInfo.Equals(currentInfo);
+
+        //copy the bits we need  - leave position
+        currentInfo.Name = updatedPlayerInfo.Name;
+        currentInfo.Side = updatedPlayerInfo.Side;
+        currentInfo.Seat = updatedPlayerInfo.Seat;
+
+        LastSeenName = currentInfo.Name;
+
+        //this will clear any stale positions if nothing is currently connected
+        ClearPositionsIfExpired();
+
+
+        //TCPClient will automatically not send if its not actually changed
+        await Application.Current.Dispatcher.InvokeAsync(async () =>
+        {
+            await EventBus.Instance.PublishOnCurrentThreadAsync(new UnitUpdateMessage()
+            {
+                FullUpdate = false,
+                UnitUpdate = new SRClientBase()
+                {
+                    ClientGuid = ShortGUID,
+                    Coalition = PlayerCoaltionLocationMetadata.Side,
+                    LatLngPosition = PlayerCoaltionLocationMetadata.LngLngPosition,
+                    Seat = PlayerCoaltionLocationMetadata.Seat,
+                    Name = LastSeenName,
+                    AllowRecord = GlobalSettingsStore.Instance.GetClientSettingBool(GlobalSettingsKeys.AllowRecording),
+                    DISEntityId = GlobalSettingsStore.Instance.GetClientSettingInt(GlobalSettingsKeys.DISEntityID)
+                }
+            });
+        }, DispatcherPriority.Background);
+            
+
+        DcsGameGuiLastReceived = DateTime.Now.Ticks;
     }
 
     public void Close()

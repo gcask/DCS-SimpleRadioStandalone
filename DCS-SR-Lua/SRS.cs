@@ -1,6 +1,5 @@
 ﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
 using Microsoft.Win32;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -13,15 +12,23 @@ using System.Text.Json.Serialization;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 {
-    struct PlayerInfo
+    record PlayerInfo
     {
-        public string name;
-        public int side;
-        public int seat;
-        public string slot;
+        public string Name { get; set; }
+        public int Side { get; set; }
+        public int Seat { get; set; }
+        public string Slot { get; set; }
     }
 
-    [JsonSerializable(typeof(PlayerInfo))]
+    record PlayerInfoUpdateCommand
+    {
+        public CommandType Command { get; } = CommandType.PLAYER_INFO;
+        public PlayerInfo PlayerInfo { get; init; }
+    }
+
+
+
+    [JsonSerializable(typeof(PlayerInfoUpdateCommand))]
     internal partial class SourceGenerationContext : JsonSerializerContext { }
     public sealed class SRS
     {
@@ -60,8 +67,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         {
             enum Ports
             {
-                // FROM DCS-SRSGameGUI.lua
-                PlayerUpdate = 5068,
                 // TO DCS-SRS-OverlayGameGUI.lua
                 RadioUpdate = 7080,
                 LOSRequests = 9086,
@@ -69,7 +74,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 Export = 9084
             }
 
-            public static readonly IPEndPoint PlayerUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.PlayerUpdate);
             public static readonly IPEndPoint RadioUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.RadioUpdate);
             public static readonly IPEndPoint LOSResults = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSResults);
             public static readonly IPEndPoint LOSRequests = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSRequests);
@@ -186,13 +190,13 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 lua.SetField(-2, "VERSION");
 
                 // Push UDP commands named constants.
-                var names = Enum.GetNames(typeof(UDPInterfaceCommand.UDPCommandType));
+                var names = Enum.GetNames(typeof(CommandType));
                 // not an array, as many entries as we have in the list.
                 using (var builder = lua.CreateTable(0, names.Length))
                 {
                     foreach (var name in names)
                     {
-                        builder.AddField(name, (int)Enum.Parse<UDPInterfaceCommand.UDPCommandType>(name));
+                        builder.AddField(name, (int)Enum.Parse<CommandType>(name));
                     }
                 }
 
@@ -210,7 +214,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
         static string GetSRSPath()
         {
-            return Registry.GetValue("HKEY_CURRENT_USER\\SOFTWARE\\DCS-SR-Standalone", "SRPathStandalone", "")?.ToString();
+            return Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\DCS-SR-Standalone", "SRPathStandalone", "")?.ToString();
         }
         static int Start_SRS(IntPtr state)
         {
@@ -311,17 +315,21 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
                 PlayerInfo update = new()
                 {
-                    name = lua.CheckString(-4),
-                    slot = lua.CheckString(-3),
-                    side = lua.CheckInteger(-2),
-                    seat = lua.CheckInteger(-1),
+                    Name = lua.CheckString(-4),
+                    Slot = lua.CheckString(-3),
+                    Side = lua.CheckInteger(-2),
+                    Seat = lua.CheckInteger(-1),
                 };
 
                 string asJson = JsonSerializer.Serialize(
-        update!, SourceGenerationContext.Default.PlayerInfo);
+                    new PlayerInfoUpdateCommand()
+                    {
+                        PlayerInfo = update
+                    }!
+                , SourceGenerationContext.Default.PlayerInfoUpdateCommand);
 
                 Instance.Info = update;
-                Instance.client.Send(asJson, EndPoints.PlayerUpdate);
+                Instance._commandService.SendAsync(asJson);
             }
             catch (Exception e)
             {
@@ -366,10 +374,10 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 // not an array, 4 key-based entries.
                 using (var builder = lua.CreateTable(0, 4))
                 {
-                    builder.AddField("name", info.name);
-                    builder.AddField("slot", info.slot);
-                    builder.AddField("side", info.side);
-                    builder.AddField("seat", info.seat);
+                    builder.AddField("name", info.Name);
+                    builder.AddField("slot", info.Slot);
+                    builder.AddField("side", info.Side);
+                    builder.AddField("seat", info.Seat);
                 }
             }
             catch (Exception e)

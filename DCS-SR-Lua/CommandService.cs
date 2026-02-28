@@ -113,7 +113,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 var read = await _pipe.ReadAsync(buffer, token);
                 await stream.WriteAsync(buffer.AsMemory(0, read), token);
             } while (!_pipe.IsMessageComplete && !token.IsCancellationRequested);
-            return new(MemoryMarshal.Cast<byte, char>(stream.GetBuffer().AsSpan(0, (int)stream.Length)));
+            return Encoding.GetString(stream.GetBuffer().AsSpan(0, (int)stream.Length));
         }
 
         public void Dispose()

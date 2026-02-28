@@ -1,6 +1,8 @@
-﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.UI.ClientWindow;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
+using Ciribob.DCS.SimpleRadio.Standalone.Client.UI.ClientWindow;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
 using NLog;
 using System;
@@ -24,54 +26,57 @@ public class UDPCommandHandler
         StartUDPCommandListener(token);
     }
 
-    private void ApplyCommand(UDPInterfaceCommand message)
+    private async void ApplyCommand(SRSCommand message)
     {
         switch (message?.Command)
         {
-            case UDPInterfaceCommand.UDPCommandType.FREQUENCY_DELTA:
+            case CommandType.FREQUENCY_DELTA:
                 RadioHelper.UpdateRadioFrequency(message.Frequency, message.RadioId);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.FREQUENCY_SET:
+            case CommandType.FREQUENCY_SET:
                 RadioHelper.UpdateRadioFrequency(message.Frequency, message.RadioId, false);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.ACTIVE_RADIO:
+            case CommandType.ACTIVE_RADIO:
                 RadioHelper.SelectRadio(message.RadioId);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.TOGGLE_GUARD:
+            case CommandType.TOGGLE_GUARD:
                 RadioHelper.ToggleGuard(message.RadioId);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.GUARD:
+            case CommandType.GUARD:
                 RadioHelper.SetGuard(message.RadioId, message.Enabled);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.CHANNEL_UP:
+            case CommandType.CHANNEL_UP:
                 RadioHelper.RadioChannelUp(message.RadioId);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.CHANNEL_DOWN:
+            case CommandType.CHANNEL_DOWN:
                 RadioHelper.RadioChannelDown(message.RadioId);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.SET_VOLUME:
+            case CommandType.SET_VOLUME:
                 RadioHelper.SetRadioVolume(message.Volume, message.RadioId);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_POWER:
+            case CommandType.TRANSPONDER_POWER:
                 TransponderHelper.SetPower(message.Enabled);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M1_CODE:
+            case CommandType.TRANSPONDER_M1_CODE:
                 TransponderHelper.SetMode1(message.Code);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M2_CODE:
+            case CommandType.TRANSPONDER_M2_CODE:
                 TransponderHelper.SetMode2(message.Code);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M3_CODE:
+            case CommandType.TRANSPONDER_M3_CODE:
                 TransponderHelper.SetMode3(message.Code);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_M4:
+            case CommandType.TRANSPONDER_M4:
                 TransponderHelper.SetMode4(message.Enabled);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.TRANSPONDER_IDENT:
+            case CommandType.TRANSPONDER_IDENT:
                 TransponderHelper.SetIdent(message.Enabled);
                 break;
-            case UDPInterfaceCommand.UDPCommandType.CONNECT:
-                ExecuteConnect(message.Address);
+            case CommandType.CONNECT:
+                await ExecuteConnectAsync(message.Address);
+                break;
+            case CommandType.PLAYER_INFO:
+                await ClientStateSingleton.Instance.UpdatePlayerInfoAsync(message.PlayerInfo);
                 break;
             default:
                 Logger.Error("Unknown UDP Command!");
@@ -79,9 +84,9 @@ public class UDPCommandHandler
         }
     }
 
-    private void ExecuteConnect(string desired)
+    private async Task ExecuteConnectAsync(string desired)
     {
-        Application.Current.Dispatcher.InvokeAsync(async () =>
+        await Application.Current.Dispatcher.InvokeAsync(async () =>
         {
             try
             {
@@ -151,7 +156,7 @@ public class UDPCommandHandler
                             } while (!client.IsMessageComplete);
 
                             var bytes = Encoding.UTF8.GetString(stream.GetBuffer().AsSpan(0, (int)stream.Length));
-                            var message = JsonSerializer.Deserialize<UDPInterfaceCommand>(bytes, serializerOptions);
+                            var message = JsonSerializer.Deserialize<SRSCommand>(bytes, serializerOptions);
                             ApplyCommand(message);
                         }
                     }

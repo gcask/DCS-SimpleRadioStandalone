@@ -182,9 +182,9 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
                 {
                     RadioInfo = _clientStateSingleton.DcsPlayerRadioInfo.ConvertToRadioBase(),
                     ClientGuid = _clientStateSingleton.ShortGUID,
-                    Coalition = _clientStateSingleton.PlayerCoaltionLocationMetadata.side,
+                    Coalition = _clientStateSingleton.PlayerCoaltionLocationMetadata.Side,
                     LatLngPosition = _clientStateSingleton.PlayerCoaltionLocationMetadata.LngLngPosition,
-                    Seat = _clientStateSingleton.PlayerCoaltionLocationMetadata.seat,
+                    Seat = _clientStateSingleton.PlayerCoaltionLocationMetadata.Seat,
                     Name = _clientStateSingleton.LastSeenName,
                     AllowRecord = _globalSettings.GetClientSettingBool(GlobalSettingsKeys.AllowRecording),
                     DISEntityId = _globalSettings.GetClientSettingInt(GlobalSettingsKeys.DISEntityID)
@@ -670,7 +670,7 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
             {
                 var unitId = DCSPlayerRadioInfo.UnitIdOffset + _clientStateSingleton.IntercomOffset;
 
-                _clientStateSingleton.PlayerCoaltionLocationMetadata.side = coalition;
+                _clientStateSingleton.PlayerCoaltionLocationMetadata.Side = coalition;
 
                 //save
                 ProcessRadioInfo(new DCSPlayerRadioInfo

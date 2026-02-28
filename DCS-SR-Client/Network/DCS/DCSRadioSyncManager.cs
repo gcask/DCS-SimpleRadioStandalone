@@ -24,12 +24,10 @@ public class DCSRadioSyncManager
     private readonly ConnectedClientsSingleton _clients = ConnectedClientsSingleton.Instance;
 
     private readonly ClientStateSingleton _clientStateSingleton = ClientStateSingleton.Instance;
-    private readonly DCSGameGuiHandler _dcsGameGuiHandler;
     private readonly DCSRadioSyncHandler _dcsRadioSyncHandler;
 
     private readonly DCSLineOfSightHandler _lineOfSightHandler;
     private readonly LotATCSyncHandler _lotATCSyncHandler;
-    private readonly UDPCommandHandler _udpCommandHandler;
 
     private VAICOMSyncHandler _vaicomHandler;
     private CancellationTokenSource Cancellation = new();
@@ -39,7 +37,6 @@ public class DCSRadioSyncManager
         IsListening = false;
         _lineOfSightHandler = new DCSLineOfSightHandler(guid);
         
-        _dcsGameGuiHandler = new DCSGameGuiHandler();
         _dcsRadioSyncHandler = new DCSRadioSyncHandler();
         _vaicomHandler = new VAICOMSyncHandler();
         _lotATCSyncHandler = new LotATCSyncHandler(guid);
@@ -78,7 +75,6 @@ public class DCSRadioSyncManager
     private void DcsListener()
     {
         _dcsRadioSyncHandler.Start();
-        _dcsGameGuiHandler.Start();
         _lineOfSightHandler.Start();
         _clearRadio.Start();
         _vaicomHandler.Start();
@@ -91,7 +87,6 @@ public class DCSRadioSyncManager
         Cancellation.Cancel();
         _clearRadio.Stop();
         _dcsRadioSyncHandler.Stop();
-        _dcsGameGuiHandler.Stop();
         _lineOfSightHandler.Stop();
         _vaicomHandler.Stop();
         _lotATCSyncHandler.Stop();

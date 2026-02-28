@@ -131,9 +131,9 @@ public class LotATCSyncHandler
                     UnitUpdate = new SRClientBase()
                     {
                         ClientGuid = _clientStateSingleton.ShortGUID,
-                        Coalition = _clientStateSingleton.PlayerCoaltionLocationMetadata.side,
+                        Coalition = _clientStateSingleton.PlayerCoaltionLocationMetadata.Side,
                         LatLngPosition = _clientStateSingleton.PlayerCoaltionLocationMetadata.LngLngPosition,
-                        Seat = _clientStateSingleton.PlayerCoaltionLocationMetadata.seat,
+                        Seat = _clientStateSingleton.PlayerCoaltionLocationMetadata.Seat,
                         Name = _clientStateSingleton.LastSeenName,
                         AllowRecord = _globalSettings.GetClientSettingBool(GlobalSettingsKeys.AllowRecording),
                         DISEntityId = _globalSettings.GetClientSettingInt(GlobalSettingsKeys.DISEntityID)
