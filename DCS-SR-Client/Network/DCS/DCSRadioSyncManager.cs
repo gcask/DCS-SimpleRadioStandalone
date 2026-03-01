@@ -75,7 +75,7 @@ public class DCSRadioSyncManager
     private void DcsListener()
     {
         _dcsRadioSyncHandler.Start();
-        _lineOfSightHandler.Start();
+        _lineOfSightHandler.Start(Cancellation.Token);
         _clearRadio.Start();
         _vaicomHandler.Start();
         _lotATCSyncHandler.Start();

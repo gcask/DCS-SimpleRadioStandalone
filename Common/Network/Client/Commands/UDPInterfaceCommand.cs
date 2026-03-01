@@ -1,4 +1,5 @@
-﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Player;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
@@ -22,6 +23,8 @@ public enum CommandType : int
     CONNECT,
     PLAYER_INFO,
     RADIO_INFO,
+    LOS_REQUEST,
+    LOS_RESULT
 }
 
 public record SRSCommand
@@ -35,4 +38,7 @@ public record SRSCommand
     public string Address { get; set; }
     public DCSPlayerSideInfo PlayerInfo { get; set; }
     public DCSPlayerRadioInfo RadioInfo { get; set; }
+
+    public DCSLosCheckRequest LOSRequest { get; set; }
+    public DCSLosCheckResult LOSResult { get; set; }
 }

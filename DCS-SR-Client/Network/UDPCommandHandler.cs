@@ -1,9 +1,11 @@
-﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS;
+﻿using Caliburn.Micro;
+using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.UI.ClientWindow;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Network;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.EventMessages;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
 using NLog;
@@ -19,13 +21,44 @@ using System.Windows.Threading;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network;
 
-public class UDPCommandHandler
+public class UDPCommandHandler : IHandle<LoSRequestMessage>
 {
-    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+    NamedPipeClientStream _pipe;
+    readonly Lock _lock = new();
 
     public void Start(CancellationToken token)
     {
         StartUDPCommandListener(token);
+    }
+
+    public async Task HandleAsync(LoSRequestMessage message, CancellationToken token)
+    {
+        var command = new SRSCommand
+        {
+            Command = CommandType.LOS_REQUEST,
+            LOSRequest = message.Request
+        };
+        var json = JsonSerializer.Serialize(command);
+        await SendAsync(Encoding.UTF8.GetBytes(json), token);
+    }
+
+    ValueTask SendAsync(ReadOnlyMemory<byte> message, CancellationToken token)
+    {
+        if (message.IsEmpty)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        lock (_lock)
+        {
+            if (_pipe == null || !_pipe.IsConnected)
+            {
+                return default;
+            }
+
+            return _pipe.WriteAsync(message, token);
+        }
     }
 
     private async void ApplyCommand(SRSCommand message)
@@ -83,10 +116,21 @@ public class UDPCommandHandler
             case CommandType.RADIO_INFO:
                 await PublishRadioInfoAsync(message.RadioInfo);
                 break;
+            case CommandType.LOS_RESULT:
+                await PublishLoSResultAsync(message.LOSResult);
+                break;
             default:
                 Logger.Error("Unknown UDP Command!");
                 break;
         }
+    }
+
+    async Task PublishLoSResultAsync(DCSLosCheckResult result)
+    {
+        await EventBus.Instance.PublishOnBackgroundThreadAsync(new LoSResultMessage()
+        {
+            Result = result
+        });
     }
 
     async Task PublishRadioInfoAsync(DCSPlayerRadioInfo info)
@@ -137,6 +181,7 @@ public class UDPCommandHandler
 
     private void StartUDPCommandListener(CancellationToken token)
     {
+        EventBus.Instance.SubscribeOnBackgroundThread(this);
         Task.Run(async () =>
         {
             while (true)
@@ -156,6 +201,10 @@ public class UDPCommandHandler
                     await client.ConnectAsync(token);
                     client.ReadMode = PipeTransmissionMode.Message;
                     Logger.Info("Command pipe client connected.");
+                    lock (_lock)
+                    {
+                        _pipe = client;
+                    }
                     var buffer = new byte[1024];
                     var serializerOptions = new JsonSerializerOptions() { IncludeFields = true, PropertyNameCaseInsensitive = true, };
                     while (client.IsConnected)
@@ -189,6 +238,13 @@ public class UDPCommandHandler
                 {
                     Logger.Error(e, "Exception handling Named pipe");
                 }
+                finally
+                {
+                    lock (_lock)
+                    {
+                        _pipe = null;
+                    }
+                }
             }
            
         }, token);
@@ -196,5 +252,6 @@ public class UDPCommandHandler
 
     public void Stop()
     {
+        EventBus.Instance.Unsubscribe(this);
     }
 }

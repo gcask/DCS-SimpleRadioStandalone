@@ -1,4 +1,14 @@
-﻿using System;
+﻿using Caliburn.Micro;
+using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.EventMessages;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.Player;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings.Setting;
+using NLog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -7,154 +17,61 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models;
-using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.Player;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings.Setting;
-using NLog;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS;
 
-public class DCSLineOfSightHandler
+public class DCSLineOfSightHandler : IHandle<LoSResultMessage>
 {
-    private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
+    private static readonly Logger Logger = NLog.LogManager.GetCurrentClassLogger();
     private readonly ConnectedClientsSingleton _clients = ConnectedClientsSingleton.Instance;
-    private readonly GlobalSettingsStore _globalSettings = GlobalSettingsStore.Instance;
     private readonly string _guid;
     private readonly SyncedServerSettings _serverSettings = SyncedServerSettings.Instance;
-    private UdpClient _dcsLOSListener;
-    private volatile bool _stop;
 
     public DCSLineOfSightHandler(string guid)
     {
         _guid = guid;
     }
 
-    public void Start()
+    public async Task HandleAsync(LoSResultMessage message, CancellationToken cancellationToken)
     {
-        StartDCSLOSBroadcastListener();
-        StartDCSLOSSender();
+        if (_clients.TryGetValue(message.Result.ID, out var client))
+        {
+            client.LineOfSightLoss = message.Result.LoS;
+        }
     }
 
-    //used for the result
-    private void StartDCSLOSBroadcastListener()
+    public async Task Start(CancellationToken token)
     {
-        Task.Factory.StartNew(() =>
-        {
-            while (!_stop)
-                try
-                {
-                    var localEp = new IPEndPoint(IPAddress.Any,
-                        _globalSettings.GetNetworkSetting(GlobalSettingsKeys.DCSLOSIncomingUDP));
-                    _dcsLOSListener = new UdpClient(localEp);
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warn(ex,
-                        $"Unable to bind to the DCS LOS Listner Socket Port: {_globalSettings.GetNetworkSetting(GlobalSettingsKeys.DCSLOSIncomingUDP)}");
-                    Thread.Sleep(500);
-                }
-
-            //    var count = 0;
-            while (!_stop)
-                try
-                {
-                    var groupEp = new IPEndPoint(IPAddress.Any, 0);
-                    var bytes = _dcsLOSListener.Receive(ref groupEp);
-
-                    /*   Logger.Debug(Encoding.UTF8.GetString(
-                            bytes, 0, bytes.Length));*/
-                    var playerInfo =
-                        JsonSerializer.Deserialize<DCSLosCheckResult[]>(Encoding.UTF8.GetString(
-                            bytes, 0, bytes.Length), new JsonSerializerOptions() { IncludeFields = true });
-
-                    foreach (var player in playerInfo)
-                    {
-                        SRClientBase client;
-
-                        if (_clients.TryGetValue(player.id, out client)) client.LineOfSightLoss = player.los;
-                        //  Logger.Debug(client.ToString());
-                    }
-                }
-                catch (SocketException e)
-                {
-                    // SocketException is raised when closing app/disconnecting, ignore so we don't log "irrelevant" exceptions
-                    if (!_stop) Logger.Error(e, "SocketException Handling DCS Los Result Message");
-                }
-                catch (Exception e)
-                {
-                    Logger.Error(e, "Exception Handling DCS Los Result Message");
-                }
-
-            try
-            {
-                _dcsLOSListener.Close();
-            }
-            catch (Exception e)
-            {
-                Logger.Error(e, "Exception stoping DCS LOS Result listener ");
-            }
-        });
+        await StartDCSLOSSender(token);
     }
 
-    private void StartDCSLOSSender()
+    private async Task StartDCSLOSSender(CancellationToken token)
     {
-        var _udpSocket = new UdpClient();
-        var _host = new IPEndPoint(IPAddress.Loopback,
-            _globalSettings.GetNetworkSetting(GlobalSettingsKeys.DCSLOSOutgoingUDP));
-
-
-        Task.Factory.StartNew(() =>
+        EventBus.Instance.SubscribeOnBackgroundThread(this);
+        await Task.Run(async () =>
         {
-            using (_udpSocket)
+            while (true)
             {
-                while (!_stop)
+                token.ThrowIfCancellationRequested();
+                try
                 {
-                    try
+                    var requests = GenerateDcsLosCheckRequests();
+                    foreach (var request in requests)
                     {
-                        //Chunk client list into blocks of 10 to stay below 8000 ish UDP socket limit
-                        var clientsList = GenerateDcsLosCheckRequests();
-
-                        if (clientsList.Count > 0)
+                        await EventBus.Instance.PublishOnBackgroundThreadAsync(new LoSRequestMessage
                         {
-                            var splitList = clientsList.ChunkBy(10);
-                            foreach (var clientSubList in splitList)
-                            {
-                                // Logger.Info( "Sending LOS Request: "+ JsonConvert.SerializeObject(clientSubList));
-                                var byteData =
-                                    Encoding.UTF8.GetBytes(JsonSerializer.Serialize(clientSubList, new JsonSerializerOptions()
-                                    {
-                                        IncludeFields = true,
-                                    }) + "\n");
-
-                                _udpSocket.Send(byteData, byteData.Length, _host);
-
-                                //every 250 - Wait for the queue
-                                Thread.Sleep(250);
-                            }
-                        }
+                            Request = request
+                        }, token);
                     }
-                    catch (Exception e)
-                    {
-                        Logger.Error(e, "Exception Sending DCS LOS Request Message");
-                    }
-
-                    //every 300 - Wait for the queue
-                    Thread.Sleep(250);
-                }
-
-                try
-                {
-                    _udpSocket.Close();
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(e, "Exception stoping DCS listener ");
+                    Logger.Error(e, "Error building LOS Requests");
+                    // Don't rethrow, just keep trying until we're cancelled.
                 }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250), token);
+
             }
         });
     }
@@ -168,9 +85,12 @@ public class DCSLineOfSightHandler
         var playerLocation = ClientStateSingleton.Instance.PlayerCoaltionLocationMetadata;
 
         if (_serverSettings.GetSettingAsBool(ServerSettingsKeys.LOS_ENABLED)
+#if !DEBUG
             && playerLocation != null
             && playerLocation.LngLngPosition != null
-            && playerLocation.LngLngPosition.IsValid())
+            && playerLocation.LngLngPosition.IsValid()
+#endif
+            )
             foreach (var client in clients)
                 //only check if its worth it
                 if (client.LatLngPosition != null
@@ -182,10 +102,8 @@ public class DCSLineOfSightHandler
 
                     requests.Add(new DCSLosCheckRequest
                     {
-                        id = client.ClientGuid,
-                        lat = latLng.lat,
-                        lng = latLng.lng,
-                        alt = latLng.alt
+                        ID = client.ClientGuid,
+                        Position = latLng,
                     });
                 }
 
@@ -194,14 +112,6 @@ public class DCSLineOfSightHandler
 
     internal void Stop()
     {
-        _stop = true;
-        try
-        {
-            _dcsLOSListener?.Close();
-        }
-        catch (Exception)
-        {
-            // ignored
-        }
+        EventBus.Instance.Unsubscribe(this);
     }
 }
