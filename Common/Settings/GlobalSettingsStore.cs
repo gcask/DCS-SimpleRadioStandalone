@@ -39,7 +39,6 @@ public enum GlobalSettingsKeys
 
     CliendIdShort, // not used anymore
     ClientIdLong,
-    OutgoingDCSUDPInfo, //7080
     OutgoingDCSUDPOther, //7082
 
     // AGC,
@@ -282,8 +281,6 @@ public class GlobalSettingsStore
 
         //    {GlobalSettingsKeys.CliendIdShort.ToString(), ShortGuid.NewGuid().ToString()},
         { GlobalSettingsKeys.ClientIdLong.ToString(), Guid.NewGuid().ToString() },
-
-        { GlobalSettingsKeys.OutgoingDCSUDPInfo.ToString(), "7080" },
         { GlobalSettingsKeys.OutgoingDCSUDPOther.ToString(), "7082" },
 
         { GlobalSettingsKeys.Denoise.ToString(), "true" },
