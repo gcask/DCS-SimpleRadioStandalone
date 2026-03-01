@@ -1,9 +1,8 @@
-﻿using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
-using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.Models;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Models;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
-using RadioReceivingState = Ciribob.DCS.SimpleRadio.Standalone.Common.Models.RadioReceivingState;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Models;
 
-namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models;
+namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models;
 
 public struct CombinedRadioState
 {

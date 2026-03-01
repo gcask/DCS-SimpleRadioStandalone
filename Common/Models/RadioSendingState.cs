@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network.Models;
+namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Models;
 
 public class RadioSendingState
 {
