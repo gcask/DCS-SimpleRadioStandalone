@@ -83,6 +83,9 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         internal static partial IntPtr luaL_checkinteger(lua_State L, int narg);
 
         [LibraryImport("lua")]
+        internal static partial double luaL_checknumber(lua_State L, int narg);
+
+        [LibraryImport("lua")]
         internal static partial void lua_pushboolean(lua_State L, int b);
         [LibraryImport("lua")]
         internal static partial void lua_pushnil(lua_State L);
@@ -102,10 +105,10 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         internal static partial void lua_getfield(lua_State L, int index, string k);
 
         [LibraryImport("lua")]
-        internal static partial void lua_newtable(lua_State L);
+        internal static partial void lua_createtable(lua_State L, int narr, int nrec);
 
         [LibraryImport("lua")]
-        internal static partial void lua_createtable(lua_State L, int narr, int nrec);
+        internal static partial void lua_settable(lua_State L, int index);
 
         [LibraryImport("lua", StringMarshalling = StringMarshalling.Utf8)]
         internal static partial void lua_setfield(lua_State L, int index, string k);

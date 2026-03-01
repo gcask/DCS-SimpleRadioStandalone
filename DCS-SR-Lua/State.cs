@@ -89,6 +89,11 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             return (int)Native.luaL_checkinteger(Handle, arg);
         }
 
+        public double CheckNumber(int arg)
+        {
+            return Native.luaL_checknumber(Handle, arg);
+        }
+
         public void Push(string value)
         {
             if (value != null)
