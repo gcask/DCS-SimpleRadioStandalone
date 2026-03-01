@@ -1,5 +1,6 @@
 ﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Player;
 using System.Text.Json.Serialization;
 
@@ -36,19 +37,15 @@ public record SRSCommand
     public bool Enabled { get; set; }
     public float Volume { get; set; }
     public int Code { get; set; }
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string Address { get; set; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DCSPlayerSideInfo PlayerInfo { get; set; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public CombinedRadioState RadioInfo { get; set; }
+    public DCSPlayerRadioInfo RadioInfo { get; set; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CombinedRadioState CombinedRadios { get; set; }
+
     public DCSLosCheckRequest LOSRequest { get; set; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DCSLosCheckResult LOSResult { get; set; }
 }

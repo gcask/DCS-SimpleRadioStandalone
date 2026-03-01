@@ -1,6 +1,8 @@
 ﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models.DCSState;
 using Microsoft.Win32;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -21,53 +23,15 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         public string Slot { get; set; }
     }
 
+    [JsonSourceGenerationOptions(IncludeFields = true)]
     [JsonSerializable(typeof(SRSCommand))]
     internal partial class SourceGenerationContext : JsonSerializerContext { }
     public sealed class SRS
     {
         private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
-        sealed class Client
-        {
-            public static readonly Encoding Encoding = Encoding.UTF8;
-            readonly Lock _lock = new();
-            readonly UdpClient client = new();
 
-            public int Send(string message, IPEndPoint dest)
-            {
-                Logger.Debug("Sending {message} to {dest}", message, dest);
-                if (string.IsNullOrEmpty(message))
-                {
-                    return 0;
-                }
-
-                // Uses a line-based protocol.
-                var asutf8 = Encoding.GetBytes(message + "\n");
-                return Send(asutf8, dest);
-            }
-
-            public int Send(ReadOnlySpan<byte> datagram, IPEndPoint dest)
-            {
-                lock (_lock)
-                {
-                    return client.Send(datagram, dest);
-                }
-            }
-        }
-
-        readonly Client client = new();
         readonly CancellationTokenSource _cts = new();
         readonly CommandService _commandService;
-
-        sealed class EndPoints
-        {
-            enum Ports
-            {
-                // TO DCS-SRS-OverlayGameGUI.lua
-                RadioUpdate = 7080,
-            }
-
-            public static readonly IPEndPoint RadioUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.RadioUpdate);
-        }
 
         #region Radio Updates
         // Radio updates are pushed constantly - we can keep only the last received state.
@@ -100,23 +64,6 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                 }
             }
         }
-
-        async void RadioUpdateHandler()
-        {
-            try
-            {
-                using var client = new UdpClient(EndPoints.RadioUpdate);
-                while (true)
-                {
-                    var update = await client.ReceiveAsync(default);
-                    if (update.Buffer.Length > 0)
-                    {
-                        LastRadioUpdate = Client.Encoding.GetString(update.Buffer);
-                    }
-                }
-            }
-            catch (Exception) { /* just eat. TODO: log. */ }
-        }
         #endregion Radio Updates
 
         #region LOS
@@ -130,8 +77,17 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         {
             NLog.LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration(Path.Combine([GetSRSPath(), "Client", "NLog.config"]));
             _commandService = new(@"command", _cts.Token);
-            radioUpdatesWorker = Task.Run(RadioUpdateHandler);
             Logger.Info("SRS Lua Library loaded.");
+        }
+
+        internal CombinedRadioState Radios
+        {
+            get
+            {
+                var result = Interlocked.Exchange(ref field, null);
+                return result;
+            }
+            set;
         }
 
         public static readonly SRS Instance = new();
@@ -431,9 +387,19 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         static int Get_Radio_Update(IntPtr state)
         {
             Logger.Trace("get_radio_update");
-            var result = ForwardMessage(state, Instance.LastRadioUpdate);
-            Instance.LastRadioUpdate = null;
-            return result;
+            var lua = new State(state);
+            try
+            {
+                var radios = Instance.Radios;
+                var asJson = JsonSerializer.Serialize(radios, SourceGenerationContext.Default.CombinedRadioState);
+                return ForwardMessage(state, asJson);
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "get_radio_update");
+                lua.Push(e.Message);
+                return Native.lua_error(lua.Handle);
+            }
         }
 
         static int Pop_LOS_Request(IntPtr state)

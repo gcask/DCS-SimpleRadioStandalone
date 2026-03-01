@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.DCS.Models.DCSState;
-using Ciribob.DCS.SimpleRadio.Standalone.Client.Network.Models;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Utils;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Audio.Models;
@@ -445,7 +444,7 @@ public class UDPClientAudioProcessor : IDisposable
                             currentlySelectedRadio.volume, currentlySelectedRadio.modulation);
 
                     //set radio overlay state
-                    _clientStateSingleton.RadioSendingState = new RadioSendingState
+                    _clientStateSingleton.RadioSendingState = new Common.Network.Models.RadioSendingState
                     {
                         IsSending = true,
                         LastSentAt = DateTime.Now.Ticks,

@@ -1,4 +1,5 @@
 ﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
+using NLog;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
@@ -8,6 +9,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 {
     internal class CommandService : IDisposable
     {
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
         public static readonly Encoding Encoding = Encoding.UTF8;
         readonly Lock _sendLock = new();
         readonly Task _worker;
@@ -76,24 +78,29 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             while (_pipe.IsConnected && !token.IsCancellationRequested)
             {
                 var message = await PumpMessage(token);
-                try
+                if (!string.IsNullOrEmpty(message))
                 {
-                    var command = JsonSerializer.Deserialize(message, SourceGenerationContext.Default.SRSCommand);
-                    switch (command.Command)
+                    try
                     {
-                        case CommandType.LOS_REQUEST:
-                            SRS.Instance.losRequests.Enqueue(command.LOSRequest);
-                            break;
-                        default:
-                            break;
-                    }
+                        var command = JsonSerializer.Deserialize(message, SourceGenerationContext.Default.SRSCommand);
+                        switch (command.Command)
+                        {
+                            case CommandType.LOS_REQUEST:
+                                SRS.Instance.losRequests.Enqueue(command.LOSRequest);
+                                break;
+                            case CommandType.RADIO_INFO:
+                                SRS.Instance.Radios = command.CombinedRadios;
+                                break;
+                            default:
+                                break;
+                        }
 
+                    }
+                    catch
+                    {
+                        // ignore malformatted.
+                    }
                 }
-                catch
-                {
-                    // ignore malformatted.
-                }
-                // Got our message! Decode, do whatever.
             }
         }
 

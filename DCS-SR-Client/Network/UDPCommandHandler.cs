@@ -14,6 +14,8 @@ using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -21,15 +23,31 @@ using System.Windows.Threading;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Client.Network;
 
-public class UDPCommandHandler : IHandle<LoSRequestMessage>
+public class UDPCommandHandler : IHandle<LoSRequestMessage>, IHandle<CombinedRadiosUpdateMessage>
 {
     private static readonly Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+    private static JsonSerializerOptions defaultSerializerOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        {
+            Modifiers = { JsonDCSPropertiesResolver.StripDCSIgnored },
+        },
+        IncludeFields = true,
+    };
+
     NamedPipeClientStream _pipe;
     readonly Lock _lock = new();
 
     public void Start(CancellationToken token)
     {
         StartUDPCommandListener(token);
+    }
+
+    private async ValueTask SendAsync(SRSCommand command, CancellationToken token)
+    {
+        var json = JsonSerializer.Serialize(command, defaultSerializerOptions);
+        await SendAsync(Encoding.UTF8.GetBytes(json), token);
     }
 
     public async Task HandleAsync(LoSRequestMessage message, CancellationToken token)
@@ -39,8 +57,17 @@ public class UDPCommandHandler : IHandle<LoSRequestMessage>
             Command = CommandType.LOS_REQUEST,
             LOSRequest = message.Request
         };
-        var json = JsonSerializer.Serialize(command);
-        await SendAsync(Encoding.UTF8.GetBytes(json), token);
+        await SendAsync(command, token);
+    }
+
+    public async Task HandleAsync(CombinedRadiosUpdateMessage message, CancellationToken token)
+    {
+        var command = new SRSCommand
+        {
+            Command = CommandType.RADIO_INFO,
+            CombinedRadios = message.CombinedRadios
+        };
+        await SendAsync(command, token);
     }
 
     ValueTask SendAsync(ReadOnlyMemory<byte> message, CancellationToken token)
@@ -217,9 +244,20 @@ public class UDPCommandHandler : IHandle<LoSRequestMessage>
                                 await stream.WriteAsync(buffer.AsMemory(0, read), token);
                             } while (!client.IsMessageComplete);
 
-                            var bytes = Encoding.UTF8.GetString(stream.GetBuffer().AsSpan(0, (int)stream.Length));
-                            var message = JsonSerializer.Deserialize<SRSCommand>(bytes, serializerOptions);
-                            ApplyCommand(message);
+                            // If we get an empty result, it probably means a broken pipe.
+                            // At which point we can let the outer loop recreate it as desired.
+                            var decodable = stream.GetBuffer().AsSpan(0, (int)stream.Length);
+                            if (!decodable.IsEmpty)
+                            {
+                                var bytes = Encoding.UTF8.GetString(decodable);
+                                if (!string.IsNullOrEmpty(bytes))
+                                {
+                                    var message = JsonSerializer.Deserialize<SRSCommand>(bytes, serializerOptions);
+                                    ApplyCommand(message);
+                                }
+                            }
+                            
+                            
                         }
                     }
                 }

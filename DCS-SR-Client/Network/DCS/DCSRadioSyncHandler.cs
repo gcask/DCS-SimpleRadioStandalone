@@ -179,6 +179,11 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
                 TunedClients = tunedClients
             };
 
+            EventBus.Instance.PublishOnBackgroundThreadAsync(new CombinedRadiosUpdateMessage
+            {
+                CombinedRadios = combinedState
+            });
+
             var message = JsonSerializer.Serialize(combinedState, new JsonSerializerOptions()
             {
 
@@ -193,11 +198,7 @@ public class DCSRadioSyncHandler : IHandle<EAMConnectedMessage>, IHandle<EAMDisc
             var byteData =
                 Encoding.UTF8.GetBytes(message);
 
-            //Logger.Info("Sending Update over UDP 7080 DCS - 7082 Flight Panels: \n"+message);
-
-            _dcsRadioUpdateSender.Send(byteData, byteData.Length,
-                new IPEndPoint(IPAddress.Parse("127.0.0.1"),
-                    _globalSettings.GetNetworkSetting(GlobalSettingsKeys.OutgoingDCSUDPInfo))); //send to DCS
+            //Logger.Info("Sending Update over UDP 7082 Flight Panels: \n"+message);
             _dcsRadioUpdateSender.Send(byteData, byteData.Length,
                 new IPEndPoint(IPAddress.Parse("127.0.0.1"),
                     _globalSettings.GetNetworkSetting(GlobalSettingsKeys
