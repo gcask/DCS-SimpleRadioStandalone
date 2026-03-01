@@ -1,5 +1,6 @@
 ﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
+using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS;
 using Microsoft.Win32;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -20,18 +21,11 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         public string Slot { get; set; }
     }
 
-    record PlayerInfoUpdateCommand
-    {
-        public CommandType Command { get; } = CommandType.PLAYER_INFO;
-        public PlayerInfo PlayerInfo { get; init; }
-    }
-
-
-
-    [JsonSerializable(typeof(PlayerInfoUpdateCommand))]
+    [JsonSerializable(typeof(SRSCommand))]
     internal partial class SourceGenerationContext : JsonSerializerContext { }
     public sealed class SRS
     {
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
         sealed class Client
         {
             public static readonly Encoding Encoding = Encoding.UTF8;
@@ -40,10 +34,11 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
             public int Send(string message, IPEndPoint dest)
             {
+                Logger.Debug("Sending {message} to {dest}", message, dest);
                 if (string.IsNullOrEmpty(message))
                 {
                     return 0;
-                }    
+                }
 
                 // Uses a line-based protocol.
                 var asutf8 = Encoding.GetBytes(message + "\n");
@@ -69,13 +64,9 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             {
                 // TO DCS-SRS-OverlayGameGUI.lua
                 RadioUpdate = 7080,
-                LOSRequests = 9086,
-                LOSResults = 9085
             }
 
             public static readonly IPEndPoint RadioUpdate = new IPEndPoint(IPAddress.Loopback, (int)Ports.RadioUpdate);
-            public static readonly IPEndPoint LOSResults = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSResults);
-            public static readonly IPEndPoint LOSRequests = new IPEndPoint(IPAddress.Loopback, (int)Ports.LOSRequests);
         }
 
         #region Radio Updates
@@ -131,32 +122,16 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
         #region LOS
         // LOS work is a request/response mechanism.
         // They are queued, and the queries are batched and expected to be processed as such.
-        readonly Task losRequestsWorker;
-        readonly ConcurrentQueue<string> losRequests = new();
-        async void LOSRequestHandler()
-        {
-            try
-            {
-                using var client = new UdpClient(EndPoints.LOSRequests);
-                while (true)
-                {
-                    var requests = await client.ReceiveAsync(default);
-                    if (requests.Buffer.Length > 0)
-                    {
-                        losRequests.Enqueue(Client.Encoding.GetString(requests.Buffer));
-                    }
-                }
-            }
-            catch (Exception) { /* just eat. TODO: log. */ }
-        }
+        internal readonly ConcurrentQueue<DCSLosCheckRequest> losRequests = new();
         #endregion LOS
-        
+
 
         SRS()
         {
+            NLog.LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration(Path.Combine([GetSRSPath(), "Client", "NLog.config"]));
             _commandService = new(@"command", _cts.Token);
             radioUpdatesWorker = Task.Run(RadioUpdateHandler);
-            losRequestsWorker = Task.Run(LOSRequestHandler);
+            Logger.Info("SRS Lua Library loaded.");
         }
 
         public static readonly SRS Instance = new();
@@ -169,8 +144,8 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             State.CreateRegister("get_player_info", Get_Player_Info),
             State.CreateRegister("send_command", Send_Command),
             State.CreateRegister("get_radio_update", Get_Radio_Update),
-            State.CreateRegister("get_los_requests", Get_LOS_Requests),
-            State.CreateRegister("send_los_results", Send_LOS_Results),
+            State.CreateRegister("pop_los_request", Pop_LOS_Request),
+            State.CreateRegister("push_los_result", Push_LOS_Result),
             new()
         ];
 
@@ -180,6 +155,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             var lua = new State(stateIn);
             try
             {
+                Logger.Debug("SRS LuaOpen for state {stateIn}", stateIn);
                 lua.Register("srs", registry);
 
                 // push constants.
@@ -203,6 +179,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             }
             catch (Exception e)
             {
+                Logger.Error(e, "Error in open");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
@@ -218,15 +195,18 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             var lua = new State(state);
             try
             {
+                var host = lua.CheckString(1);
+                Logger.Trace("start_srs({host})", host);
                 if (IsRunning())
                 {
+                    Logger.Debug("SRS already running.");
                     lua.Push(false);
                     return 1;
                 }
 
-                var host = lua.CheckString(1);
 
                 var path = Path.Combine([GetSRSPath(), "Client"]);
+                Logger.Info("Launching SRS at {path}", path);
                 using var proc = Process.Start(new ProcessStartInfo
                 {
                     WorkingDirectory = path,
@@ -238,6 +218,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             }
             catch (Exception e)
             {
+                Logger.Error(e, "start_srs");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
@@ -250,11 +231,14 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             var lua = new State(state);
             try
             {
+                Logger.Trace("get_srs_path()");
                 var srsPath = GetSRSPath();
+                Logger.Trace(srsPath);
                 lua.Push(srsPath);
             }
             catch (Exception e)
             {
+                Logger.Error(e, "get_srs_path");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
@@ -279,15 +263,31 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             var lua = new State(state);
             try
             {
+                Logger.Trace("is_running()");
                 lua.Push(IsRunning());
             }
             catch (Exception e)
             {
+                Logger.Error(e, "is_running");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
             
             return 1;
+        }
+
+        async ValueTask SendCommandAsync(SRSCommand command)
+        {
+            try
+            {
+                Logger.Debug("Sending command {type}", command.Command);
+                string asJson = JsonSerializer.Serialize(command, SourceGenerationContext.Default.SRSCommand);
+                await _commandService.SendAsync(asJson);
+            }
+            catch (Exception e)
+            {
+                Logger.Warn(e, "Error sending command");
+            }
         }
 
         static int Update_Player_Info(IntPtr state)
@@ -318,18 +318,22 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
                     Seat = lua.CheckInteger(-1),
                 };
 
-                string asJson = JsonSerializer.Serialize(
-                    new PlayerInfoUpdateCommand()
+                Task.Run(async () => await Instance.SendCommandAsync(new()
+                {
+                    Command = CommandType.PLAYER_INFO,
+                    PlayerInfo = new()
                     {
-                        PlayerInfo = update
-                    }!
-                , SourceGenerationContext.Default.PlayerInfoUpdateCommand);
+                        Name = update.Name,
+                        Seat = update.Seat,
+                        Side = update.Side,
+                    }
+                }));
 
                 Instance.Info = update;
-                Instance._commandService.SendAsync(asJson);
             }
             catch (Exception e)
             {
+                Logger.Error(e, "update_player_info");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
@@ -379,28 +383,13 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             }
             catch (Exception e)
             {
+                Logger.Error(e, "get_player_info");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
             
 
             return 1;
-        }
-
-        static int ForwardMessage(IntPtr state, IPEndPoint dest)
-        {
-            var lua = new State(state);
-            try
-            {
-                Instance.client.Send(lua.CheckString(1), dest);
-            }
-            catch (Exception e)
-            {
-                lua.Push(e.Message);
-                return Native.lua_error(lua.Handle);
-            }
-
-            return 0;
         }
 
         static int ForwardMessage(IntPtr state, string message)
@@ -412,6 +401,7 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             }
             catch (Exception e)
             {
+                Logger.Error(e, "Forward message to lua");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
@@ -424,10 +414,13 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             var lua = new State(state);
             try
             {
-                Instance._commandService.SendAsync(lua.CheckString(1));
+                var command = lua.CheckString(1);
+                Logger.Debug("Sending command {command}", command);
+                Instance._commandService.SendAsync(command);
             }
             catch (Exception e)
             {
+                Logger.Error(e, "send_command");
                 lua.Push(e.Message);
                 return Native.lua_error(lua.Handle);
             }
@@ -437,22 +430,81 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 
         static int Get_Radio_Update(IntPtr state)
         {
+            Logger.Trace("get_radio_update");
             var result = ForwardMessage(state, Instance.LastRadioUpdate);
             Instance.LastRadioUpdate = null;
             return result;
         }
 
-        static int Get_LOS_Requests(IntPtr state)
+        static int Pop_LOS_Request(IntPtr state)
         {
-            string requests = null;
-            Instance.losRequests.TryDequeue(out requests);
-            var result = ForwardMessage(state, requests);
-            return result;
+            Logger.Trace("pop_los_request()");
+            var lua = new State(state);
+            try
+            {
+                if (Instance.losRequests.TryDequeue(out var request))
+                {
+                    using (var luaRequest = lua.CreateTable(0, 2))
+                    {
+                        luaRequest.AddField("id", request.ID);
+                        lua.Push("position");
+                        using (var pos = lua.CreateTable(0, 3))
+                        {
+                            pos.AddField("lat", request.Position.lat);
+                            pos.AddField("lng", request.Position.lng);
+                            pos.AddField("alt", request.Position.alt);
+                        }
+                        Native.lua_settable(lua.Handle, -3);
+                    }
+
+                    return 1;
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "send_command");
+                lua.Push(e.Message);
+                return Native.lua_error(lua.Handle);
+            }
+
+            return 0;
         }
 
-        static int Send_LOS_Results(IntPtr state)
+        static int Push_LOS_Result(IntPtr state)
         {
-            return ForwardMessage(state, EndPoints.LOSResults);
+            Logger.Trace("push_los_request()");
+            var lua = new State(state);
+            try
+            {
+                if (!lua.IsTable(1))
+                {
+                    Logger.Warn("Expected table, got something else.");
+                    lua.TypError(1, "table");
+                    return 0;
+                }
+
+                lua.GetField(1, "id"); // -2
+                lua.GetField(1, "los"); // -1
+
+                DCSLosCheckResult update = new()
+                {
+                    ID = lua.CheckString(-2),
+                    LoS = (float)lua.CheckNumber(-1),
+                };
+
+                Task.Run(async () => await Instance.SendCommandAsync(new()
+                {
+                    Command = CommandType.LOS_RESULT,
+                    LOSResult = update,
+                }));
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "push_los_request");
+                lua.Push(e.Message);
+                return Native.lua_error(lua.Handle);
+            }
+            return 0;
         }
     }
 }

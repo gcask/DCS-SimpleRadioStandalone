@@ -1,6 +1,8 @@
-﻿using System.IO.Pipes;
-using System.Runtime.InteropServices;
+﻿using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Client.Commands;
+using System.IO.Pipes;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
 {
@@ -74,6 +76,23 @@ namespace Ciribob.DCS.SimpleRadio.Standalone.Lua
             while (_pipe.IsConnected && !token.IsCancellationRequested)
             {
                 var message = await PumpMessage(token);
+                try
+                {
+                    var command = JsonSerializer.Deserialize(message, SourceGenerationContext.Default.SRSCommand);
+                    switch (command.Command)
+                    {
+                        case CommandType.LOS_REQUEST:
+                            SRS.Instance.losRequests.Enqueue(command.LOSRequest);
+                            break;
+                        default:
+                            break;
+                    }
+
+                }
+                catch
+                {
+                    // ignore malformatted.
+                }
                 // Got our message! Decode, do whatever.
             }
         }
