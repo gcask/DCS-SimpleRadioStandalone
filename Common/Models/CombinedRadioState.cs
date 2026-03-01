@@ -4,7 +4,7 @@ using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Models;
 
 namespace Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS.Models;
 
-public struct CombinedRadioState
+public record CombinedRadioState
 {
     public DCSPlayerRadioInfo RadioInfo;
 
