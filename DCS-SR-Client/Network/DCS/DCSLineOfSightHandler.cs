@@ -1,20 +1,14 @@
 ﻿using Caliburn.Micro;
 using Ciribob.DCS.SimpleRadio.Standalone.Client.Singletons;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Helpers;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.EventMessages;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Models.Player;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.DCS;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Network.Singletons;
-using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings;
 using Ciribob.DCS.SimpleRadio.Standalone.Common.Settings.Setting;
 using NLog;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,6 +20,7 @@ public class DCSLineOfSightHandler : IHandle<LoSResultMessage>
     private readonly ConnectedClientsSingleton _clients = ConnectedClientsSingleton.Instance;
     private readonly string _guid;
     private readonly SyncedServerSettings _serverSettings = SyncedServerSettings.Instance;
+    private readonly ConcurrentDictionary<string, DCSLosCheckRequest> _activeRequests = new();
 
     public DCSLineOfSightHandler(string guid)
     {
@@ -38,6 +33,7 @@ public class DCSLineOfSightHandler : IHandle<LoSResultMessage>
         {
             client.LineOfSightLoss = message.Result.LoS;
         }
+        _activeRequests.TryRemove(message.Result.ID, out var _);
     }
 
     public async Task Start(CancellationToken token)
@@ -91,21 +87,28 @@ public class DCSLineOfSightHandler : IHandle<LoSResultMessage>
             && playerLocation.LngLngPosition.IsValid()
 #endif
             )
+        {
             foreach (var client in clients)
+            {
                 //only check if its worth it
                 if (client.LatLngPosition != null
                     && client.LatLngPosition.IsValid()
                     && client.ClientGuid != _guid
                    )
                 {
-                    var latLng = client.LatLngPosition;
-
-                    requests.Add(new DCSLosCheckRequest
+                    var request = new DCSLosCheckRequest
                     {
                         ID = client.ClientGuid,
-                        Position = latLng,
-                    });
+                        Position = client.LatLngPosition,
+
+                    };
+                    if (_activeRequests.TryAdd(client.ClientGuid, request))
+                    {
+                        requests.Add(request);
+                    }
                 }
+            }
+        }
 
         return requests;
     }
