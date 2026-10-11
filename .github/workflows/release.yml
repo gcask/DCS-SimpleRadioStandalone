@@ -30,7 +30,7 @@ jobs:
       contents: read
     needs: publish
     name: Sign (Release)
-    uses: signing.yml
+    uses: $/.github/workflows/signing.yml
     with:
       policy: release
       artifact-id: ${{ needs.publish.outputs.srs-install-zip }}
@@ -41,7 +41,7 @@ jobs:
   scan:
     needs: sign
     name: virustotal-scan
-    uses: virustotal-scan.yml
+    uses: $/.github/workflows/virustotal-scan.yml
     with:
       srs-zip-id: ${{ needs.sign.outputs.scan-zip-id }}
     secrets:
