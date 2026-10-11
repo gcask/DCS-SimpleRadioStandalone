@@ -12,8 +12,10 @@ on:
         type: string
         required: true
     outputs:
-      install-zip-id:  ${{ jobs.sign.outputs.install-zip-id }}
-      scan-zip-id:  ${{ jobs.sign.outputs.scan-zip-id }}
+      install-zip-id:
+        value: ${{ jobs.sign.outputs.install-zip-id }}
+      scan-zip-id:
+        value: ${{ jobs.sign.outputs.scan-zip-id }}
     secrets:
       organization-id:
         required: true
