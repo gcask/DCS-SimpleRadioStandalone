@@ -50,6 +50,8 @@ jobs:
     name: Create Release
     needs: sign
     runs-on: ubuntu-slim
+    permissions:
+        contents: write
     steps:
     - name: Dependencies
       run: apt-get install -y unzip
@@ -67,8 +69,6 @@ jobs:
     - name: Creating Release ${{ github.ref_name }}
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      permissions:
-        contents: write
       run: |
         gh release create "${{ github.ref_name }}" \
             SRS-AutoUpdater.exe DCS-SimpleRadioStandalone-${{ github.ref_name }}.zip SRS-Server-Commandline-Linux \

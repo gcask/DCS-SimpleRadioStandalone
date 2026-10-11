@@ -22,12 +22,7 @@ on:
 
 jobs:
   sign:
-    if: ${{ github.event_name != 'pull_request' && github.repository == 'ciribob/DCS-SimpleRadioStandalone' }}
-    permissions:
-      actions: read
-      contents: read
-    needs: publish
-    name: Sign (Test)
+    name: Sign (${{ inputs.policy }})
     runs-on: ubuntu-slim
     outputs:
       scan-zip-id: ${{ steps.upload-scan.outputs.artifact-id }}
