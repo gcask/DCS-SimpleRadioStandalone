@@ -18,12 +18,12 @@ jobs:
         run: sudo apt-get install -y unzip
       - name: vt-cli
         run: |
-          curl -LO https://github.com/VirusTotal/vt-cli/releases/latest/download/Linux64.zip
+          gh release download --repo VirusTotal/vt-cli --pattern 'Linux64.zip'
           unzip Linux64.zip
           chmod +x vt
       - name: yq YAML parser
         run: |
-          curl -LO https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64.tar.gz
+          gh release download --repo mikefarah/yq --pattern 'yq_linux_amd64.tar.gz'
           tar xzf yq_linux_amd64.tar.gz
           chmod +x yq_linux_amd64
       - uses: actions/download-artifact@v8
